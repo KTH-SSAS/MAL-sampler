@@ -19,7 +19,6 @@ class Asset:
         return len(self.associated_assets[asset_type]) < self.n_associated_assets[asset_type]
 
     def print(self):
-
         print(f"{self.asset_type_name}: {self.name}. Associated assets: {[(n, [a.name for a in list(self.associated_assets[n])]) for n in self.associated_assets]}")
 
 
@@ -39,11 +38,13 @@ class VMInstance(Asset):
         self.associated_assets['network'] = set()
         self.associated_assets['admin'] = set()
     
+
 class Principal(Asset):
     def __init__(self, name: str):
         super().__init__(name, 'principal')
         self.n_associated_assets['admin'] = binom(n=2, p=0.1).rvs()
         self.associated_assets['admin'] = set()
+
 
 class Role(Asset):
     def __init__(self, name: str, asset_type_name: str):
@@ -72,7 +73,7 @@ class Model():
         self.assets = dict()
         self.n_assets['network'] = 1 + binom(n=30, p=0.5).rvs()
         self.n_assets['principal'] = 1 + binom(n=10*self.n_assets['network'], p=0.05).rvs()
-        self.n_assets['vm_instance'] = 1 + binom(n=10*self.n_assets['network'], p=0.02).rvs()
+        self.n_assets['vm_instance'] = 200
         self.n_assets['admin'] = sys.maxsize
         self.n_assets['login'] = sys.maxsize
         self.assets['network'] = set()
@@ -82,7 +83,7 @@ class Model():
 
     def add(self, asset_type: str):
         a = None
-        if len(self.assets[asset_type]) <= self.n_assets[asset_type]:
+        if len(self.assets[asset_type]) < self.n_assets[asset_type]:
             if asset_type == 'network':
                 a = Network(f"N{len(self.assets[asset_type])}")
             elif asset_type == 'principal':
@@ -97,7 +98,7 @@ class Model():
                 raise ValueError(f'Unknown asset type: {asset_type}')
             self.assets[asset_type].add(a)
         else:
-            print(f'Cannot add more {asset_type} assets.')
+            print(f'Reached the limit of {self.n_assets[asset_type]} {asset_type} assets.')
         return a
 
     def associate_networks_to_networks(self):
@@ -119,33 +120,33 @@ class Model():
                 return len(available_networks)
 
     def associate(self, source_asset_type: str, target_asset_type: str):
+        print(f'Attempting to associate some {source_asset_type} to some {target_asset_type}')
         available_source_assets = [a for a in self.assets[source_asset_type] if a.accepts(target_asset_type)]
         if len(available_source_assets) > 0:
+            print(f'Found {len(available_source_assets)} {source_asset_type} to associate to {target_asset_type}')
             source_asset = random.choice(available_source_assets)
         else:
-            print(f'Not enough {source_asset_type} to associate to {target_asset_type}')
-            if len(self.assets[source_asset_type]) < self.n_assets[source_asset_type]:
-                source_asset = self.add(source_asset_type)
-                print(f'Added {source_asset_type}')
-            else:
-                print(f'Cannot add more {source_asset_type} assets.')
-                return False
-            
-        available_target_assets = [a for a in self.assets[target_asset_type] if a.accepts(source_asset_type) and a not in source_asset.associated_assets[target_asset_type]]
-        if len(available_target_assets) > 0:
-            target_asset = random.choice(available_target_assets)
+            print(f'Not enough {source_asset_type} to associate to {target_asset_type}. Creating one.')
+            source_asset = self.add(source_asset_type)
+        if not source_asset:  
+            print(f'Could not find or create source {source_asset_type} to associate to {target_asset_type}') 
+            return False
         else:
-            print(f'Not enough {target_asset_type} to associate to {source_asset_type}')
-            if len(self.assets[target_asset_type]) < self.n_assets[target_asset_type]:
-                target_asset = self.add(target_asset_type)
-                print(f'Added {target_asset_type}')
+            available_target_assets = [a for a in self.assets[target_asset_type] if a.accepts(source_asset_type) and a not in source_asset.associated_assets[target_asset_type]]
+            if len(available_target_assets) > 0:
+                target_asset = random.choice(available_target_assets)
             else:
-                print(f'Cannot add more {target_asset_type} assets.')
+                print(f'Not enough {target_asset_type} to associate to {source_asset_type}. Creating one.')
+                target_asset = self.add(target_asset_type)
+
+            if target_asset:
+                source_asset.associated_assets[target_asset_type].add(target_asset)
+                target_asset.associated_assets[source_asset_type].add(source_asset)
+                print(f'Associated {source_asset.name} to {target_asset.name}')
+                return True
+            else:
+                print(f'Could not find or create target {target_asset_type} to associate to {source_asset_type}') 
                 return False
-        
-        source_asset.associated_assets[target_asset_type].add(target_asset)
-        target_asset.associated_assets[source_asset_type].add(source_asset)
-        return True
 
     def print(self):
         for asset_type in self.assets.keys():
@@ -194,11 +195,9 @@ class Sampler():
         print('Associating networks to networks')
         while self.current_model.associate_networks_to_networks() > 1:
             pass
-        print('Associating VM instances to networks')
         while self.current_model.associate('vm_instance', 'network'):
             pass
-        print('Associating admins to VM instances')
-        while self.current_model.associate('admin', 'vm_instance') > 0:
+        while self.current_model.associate('vm_instance', 'admin') > 0:
             pass
         self.current_model.print()
         self.current_model.plot()
