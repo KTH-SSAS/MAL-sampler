@@ -10,9 +10,11 @@ import matplotlib.pyplot as plt
 class Asset:
     def __init__(self, name: str):
         self.name = name
+        self.n_associated_assets = dict()
+        self.associated_assets = dict()
 
-    def log_probability(self):
-        return float('-inf')
+    def accepts(self, asset_type: str):
+        return len(self.associated_assets[asset_type]) < self.n_associated_assets[asset_type]
 
     def print(self):
         print(self.name)
@@ -21,20 +23,23 @@ class Asset:
 class Network(Asset):
     def __init__(self, name: str):
         super().__init__(name)
-        self.n_networks = 1 + binom(n=500, p=0.005).rvs()
-        self.networks = set()
-        self.n_vm_instances = 1 + binom(n=1000, p=0.005).rvs()
-        self.vm_instances = set()
+        # self.n_networks = 1 + binom(n=500, p=0.005).rvs()
+        # self.networks = set()
+        # self.n_vm_instances = 1 + binom(n=1000, p=0.005).rvs()
+        # self.vm_instances = set()
+        self.n_associated_assets['network'] = 1 + binom(n=500, p=0.005).rvs()
+        self.n_associated_assets['vm_instance'] = 1 + binom(n=1000, p=0.005).rvs()
+        self.associated_assets['network'] = set()
+        self.associated_assets['vm_instance'] = set()
 
-    def accepts_network(self):
-        return len(self.networks) < self.n_networks
+    # def accepts_network(self):
+    #     return len(self.networks) < self.n_networks
 
-    def accepts_vm_instance(self):
-        return len(self.vm_instances) < self.n_vm_instances
+    # def accepts_vm_instance(self):
+    #     return len(self.vm_instances) < self.n_vm_instances
 
     def print(self):
-        print(
-            f'Network: {self.name}. Associated networks: {[an.name for an in self.networks]}. Associated VM instances: {[ah.name for ah in self.vm_instances]}')
+        print(f"Network: {self.name}. Associated networks: {[an.name for an in self.associated_assets['network']]}. Associated VM instances: {[ah.name for ah in self.associated_assets['vm_instance']]}")
 
 
 class VMInstance(Asset):
@@ -55,21 +60,40 @@ class VMInstance(Asset):
         print(
             f'VMInstance: {self.name}. Networks: {[nw.name for nw in self.networks]}')
 
+
 class Principal(Asset):
     def __init__(self, name: str):
         super().__init__(name)
+        self.n_admins = 1
+        self.admins = set()
+
+    def accepts_admin(self):
+        return len(self.admins) < self.n_admins
+
 
 class Role(Asset):
     def __init__(self, name: str):
         super().__init__(name)
+        self.vm_instances = set()
+        self.principals = set()
+
 
 class ComputeOSAdminLogin(Role):
     def __init__(self, name: str):
         super().__init__(name)
+        self.n_vm_instances = 1
+        self.n_principal = 1 + binom(n=5, p=0.1).rvs()
+
+    def accepts_principal(self):
+        return len(self.principals) < self.n_principal
+
 
 class ComputeOSLogin(Role):
     def __init__(self, name: str):
         super().__init__(name)
+        self.n_vm_instances = binom(n=30, p=0.5).rvs()
+        self.n_principal = 1 + binom(n=5, p=0.1).rvs()
+
 
 class Model():
     def __init__(self):
@@ -97,34 +121,32 @@ class Model():
         return self.n_principals - len(self.principals)
 
     def associate_networks_to_networks(self):
-        available_networks = [
-            nw for nw in self.networks if nw.accepts_network()]
+        available_networks = [nw for nw in self.networks if nw.accepts('network')]
         if len(available_networks) < 2:
             print('Not enough networks to associate to each other')
             return len(available_networks)
         else:
             source_nw = random.choice(available_networks)
-            target_nw = random.choice(
-                [nw for nw in available_networks if nw != source_nw])
-            if source_nw in target_nw.networks or target_nw in source_nw.networks:
+            target_nw = random.choice([nw for nw in available_networks if nw != source_nw])
+            if source_nw in target_nw.associated_assets['network'] or target_nw in source_nw.associated_assets['network']:
                 print(f'Networks already associated. {len(available_networks)} networks left.')
                 return len(available_networks) - 1
             else:
-                source_nw.networks.add(target_nw)
-                target_nw.networks.add(source_nw)
+                source_nw.associated_assets['network'].add(target_nw)
+                target_nw.associated_assets['network'].add(source_nw)
                 print(
                     f'Associated {source_nw.name} to {target_nw.name}. {len(available_networks)} networks left.')
                 return len(available_networks)
 
     def associate_vm_instances_to_networks(self):
-        available_networks = [nw for nw in self.networks if nw.accepts_vm_instance()]
+        available_networks = [nw for nw in self.networks if nw.accepts('vm_instance')]
         if len(available_networks) == 0:
             print('Not enough networks to associate vm instances to')
         else:
             nw = random.choice(available_networks)
             vm_instance = VMInstance(f'VM{len(self.vm_instances)}')
             self.vm_instances.add(vm_instance)
-            nw.vm_instances.add(vm_instance)
+            nw.associated_assets['vm_instance'].add(vm_instance)
             vm_instance.networks.add(nw)
         return len(available_networks)
 
@@ -137,7 +159,20 @@ class Model():
             admin = ComputeOSAdminLogin(f'A{ah.name}')
             self.admins.add(admin)
             ah.admins.add(admin)
+            admin.vm_instances.add(ah)
         return len(available_vm_instances)
+
+    def associate_principals_to_admins(self):
+        available_admins = [a for a in self.admins if a.accepts_principal()]
+        available_principal = [p for p in self.principals if p.accepts_admin()]
+        if len(available_admins) == 0:
+            print('Not enough admins to associate principals to')
+        else:
+            a = random.choice(available_admins)
+            p = random.choice([p for p in self.principals if p not in a.principals])
+            a.principals.add(p)
+            p.admins.add(a)
+        return len(available_admins)
 
     def print(self):
         for nw in self.networks:
@@ -147,15 +182,15 @@ class Model():
         G = nx.Graph()
         for nw in self.networks:
             G.add_node(nw.name)
-            for an in nw.networks:
+            for an in nw.associated_assets['network']:
                 G.add_edge(nw.name, an.name)
-            for ah in nw.vm_instances:
+            for ah in nw.associated_assets['vm_instance']:
                 G.add_edge(nw.name, ah.name)
                 for a in ah.admins:
                     G.add_edge(ah.name, a.name)
         for p in self.principals:
             G.add_node(p.name)
-        pos = nx.spring_layout(G)
+        pos = nx.spring_layout(G, k=0.125, iterations=50)
         plt.figure(facecolor='black')
         nx.draw_networkx_nodes(G, pos, nodelist=[nw.name for nw in self.networks], node_shape='s', node_color='red', edgecolors='white', linewidths=0.5, node_size=50)
         nx.draw_networkx_nodes(G, pos, nodelist=[ah.name for ah in self.vm_instances], node_shape='o', node_color='blue', edgecolors='white', linewidths=0.5, node_size=50)
