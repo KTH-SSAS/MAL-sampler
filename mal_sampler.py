@@ -21,23 +21,23 @@ class Asset:
 class Network(Asset):
     def __init__(self, name: str):
         super().__init__(name)
-        self.n_networks = 1 + binom(n=5, p=0.5).rvs()
+        self.n_networks = 1 + binom(n=500, p=0.005).rvs()
         self.networks = set()
-        self.n_hosts = 1 + binom(n=10, p=0.5).rvs()
-        self.hosts = set()
+        self.n_vm_instances = 1 + binom(n=1000, p=0.005).rvs()
+        self.vm_instances = set()
 
     def accepts_network(self):
         return len(self.networks) < self.n_networks
 
-    def accepts_host(self):
-        return len(self.hosts) < self.n_hosts
+    def accepts_vm_instance(self):
+        return len(self.vm_instances) < self.n_vm_instances
 
     def print(self):
         print(
-            f'Network: {self.name}. Associated networks: {[an.name for an in self.networks]}. Associated hosts: {[ah.name for ah in self.hosts]}')
+            f'Network: {self.name}. Associated networks: {[an.name for an in self.networks]}. Associated VM instances: {[ah.name for ah in self.vm_instances]}')
 
 
-class Host(Asset):
+class VMInstance(Asset):
     def __init__(self, name: str):
         super().__init__(name)
         self.n_networks = 1
@@ -48,14 +48,14 @@ class Host(Asset):
 
     def print(self):
         print(
-            f'Host: {self.name}. Networks: {[nw.name for nw in self.networks]}')
+            f'VMInstance: {self.name}. Networks: {[nw.name for nw in self.networks]}')
 
 
 class Model():
     def __init__(self):
         self.n_networks = 1 + binom(n=30, p=0.5).rvs()
         self.networks = set()
-        self.hosts = set()
+        self.vm_instances = set()
 
     def add_network(self):
         if len(self.networks) <= self.n_networks:
@@ -85,16 +85,16 @@ class Model():
                     f'Associated {source_nw.name} to {target_nw.name}. {len(available_networks)} networks left.')
                 return len(available_networks)
 
-    def associate_hosts_to_networks(self):
-        available_networks = [nw for nw in self.networks if nw.accepts_host()]
+    def associate_vm_instances_to_networks(self):
+        available_networks = [nw for nw in self.networks if nw.accepts_vm_instance()]
         if len(available_networks) == 0:
-            print('Not enough networks to associate hosts to')
+            print('Not enough networks to associate vm instances to')
         else:
             nw = random.choice(available_networks)
-            host = Host(f'Host_{len(self.hosts)}')
-            self.hosts.add(host)
-            nw.hosts.add(host)
-            host.networks.add(nw)
+            vm_instance = VMInstance(f'VM_{len(self.vm_instances)}')
+            self.vm_instances.add(vm_instance)
+            nw.vm_instances.add(vm_instance)
+            vm_instance.networks.add(nw)
         return len(available_networks)
 
     def print(self):
@@ -107,12 +107,12 @@ class Model():
             G.add_node(nw.name)
             for an in nw.networks:
                 G.add_edge(nw.name, an.name)
-            for ah in nw.hosts:
+            for ah in nw.vm_instances:
                 G.add_edge(nw.name, ah.name)
         pos = nx.spring_layout(G)
         plt.figure(facecolor='black')
         nx.draw_networkx_nodes(G, pos, nodelist=[nw.name for nw in self.networks], node_shape='s', node_color='red', edgecolors='white', linewidths=0.5, node_size=50)
-        nx.draw_networkx_nodes(G, pos, nodelist=[ah.name for ah in self.hosts], node_shape='o', node_color='blue', edgecolors='white', linewidths=0.5, node_size=50)
+        nx.draw_networkx_nodes(G, pos, nodelist=[ah.name for ah in self.vm_instances], node_shape='o', node_color='blue', edgecolors='white', linewidths=0.5, node_size=50)
         nx.draw_networkx_edges(G, pos, edge_color='white', width=0.5)
         nx.draw_networkx_labels(G, pos, font_color='white', font_size=4)
         plt.axis('off')
@@ -129,8 +129,8 @@ class Sampler():
         print('Associating networks to networks')
         while self.current_model.associate_networks_to_networks() > 1:
             pass
-        print('Associating hosts to networks')
-        while self.current_model.associate_hosts_to_networks() > 0:
+        print('Associating VM instances to networks')
+        while self.current_model.associate_vm_instances_to_networks() > 0:
             pass
         self.current_model.print()
         self.current_model.plot()
