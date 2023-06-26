@@ -73,7 +73,7 @@ class Model():
         self.assets = dict()
         self.n_assets['network'] = 1 + binom(n=30, p=0.5).rvs()
         self.n_assets['principal'] = 1 + binom(n=10*self.n_assets['network'], p=0.05).rvs()
-        self.n_assets['vm_instance'] = 200
+        self.n_assets['vm_instance'] = 100
         self.n_assets['admin'] = sys.maxsize
         self.n_assets['login'] = sys.maxsize
         self.assets['network'] = set()
@@ -126,17 +126,19 @@ class Model():
             print(f'Found {len(available_source_assets)} {source_asset_type} to associate to {target_asset_type}')
             source_asset = random.choice(available_source_assets)
         else:
-            print(f'Not enough {source_asset_type} to associate to {target_asset_type}. Creating one.')
+            print(f'Not enough {source_asset_type} to associate to {target_asset_type}. Attempting to create one.')
             source_asset = self.add(source_asset_type)
         if not source_asset:  
             print(f'Could not find or create source {source_asset_type} to associate to {target_asset_type}') 
             return False
         else:
             available_target_assets = [a for a in self.assets[target_asset_type] if a.accepts(source_asset_type) and a not in source_asset.associated_assets[target_asset_type]]
+            if target_asset_type == source_asset_type:
+                available_target_assets = [a for a in available_target_assets if a != source_asset]
             if len(available_target_assets) > 0:
                 target_asset = random.choice(available_target_assets)
             else:
-                print(f'Not enough {target_asset_type} to associate to {source_asset_type}. Creating one.')
+                print(f'Not enough {target_asset_type} to associate to {source_asset_type}. Attempting to create one.')
                 target_asset = self.add(target_asset_type)
 
             if target_asset:
@@ -193,11 +195,11 @@ class Sampler():
         while self.current_model.add('principal'):
             pass
         print('Associating networks to networks')
-        while self.current_model.associate_networks_to_networks() > 1:
+        while self.current_model.associate('network', 'network'):
             pass
         while self.current_model.associate('vm_instance', 'network'):
             pass
-        while self.current_model.associate('vm_instance', 'admin') > 0:
+        while self.current_model.associate('vm_instance', 'admin'):
             pass
         self.current_model.print()
         self.current_model.plot()
