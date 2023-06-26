@@ -17,6 +17,7 @@ class Asset:
         print(self.name)
 
 class Network(Asset):
+    p_networks = binom(n=20, p=0.5)
     def __init__(self, name: str):
         super().__init__(name)
         self.max_associated_networks = 10
@@ -24,18 +25,18 @@ class Network(Asset):
         self.p_unassociated_networks = binom(n=self.max_associated_networks, p=0.99)
         self.associated_networks = set()
 
+    def probability_of_another_network(self):
+        return 1 - self.p_associated_networks.cdf(len(self.associated_networks))
+
     def spawn_network(self):
-        nw = Network(f'Network_{len(self.associated_networks)}')
+        print(f'Spawning new network from {self.name}')
+        nw = Network(f'Network_{len(self.associated_networks)}_neigbor')
         self.associated_networks.add(nw)
         nw.associated_networks.add(self)
         return nw
 
-    def normalized_log_probability(self, model):
-        logp_of_assoc = self.p_associated_networks.logpmf(len(self.associated_networks))
-        logp_of_unassoc = self.p_unassociated_networks.logpmf(len(model.networks) - len(self.associated_networks))
-        n_possible_configurations = len(model.networks)*(len(model.networks))/2
-        print(f'log(n_possible_configurations) {math.log(self.max_associated_networks)}. log prob {logp_of_assoc} of {len(self.associated_networks)} associated networks. log prob {logp_of_unassoc} of {len(model.networks) - len(self.associated_networks)} unassociated networks.')
-        return math.log(self.max_associated_networks) + self.p_associated_networks.logpmf(len(self.associated_networks)) + self.p_unassociated_networks.logpmf(len(model.networks) - len(self.associated_networks))
+    def veto_spawn_network(self):
+        return random.random() > self.probability_of_another_network()
 
     def print(self):
         print(f'Network: {self.name}. Associated networks: {[an.name for an in self.associated_networks]}')
@@ -45,24 +46,27 @@ class Model():
         self.networks = list()
         self.hosts = list()
 
-    def probability(self):
-        if self.networks:
-            log_probability = 0
-            for nw in self.networks:
-                log_probability += nw.normalized_log_probability(self)
-            return log_probability
-        else:
-            return float('-inf')
+    def veto_add_network(self):
+        return random.random() < Network.p_networks.cdf(len(self.networks))
 
     def add_network(self):
-        if len(self.networks) == 0:
-            nw = Network(f'Network_{len(self.networks)}')
-            self.networks.append(nw)
-            return nw
+        if self.veto_add_network():
+            print(f'Vetoing add network. Number of networks: {len(self.networks)}')
+            return None
         else:
-            nw = random.choice(self.networks)
-            self.networks.append(nw.spawn_network())
-            return nw
+            if len(self.networks) == 0:
+                nw = Network(f'Network_{len(self.networks)}')
+                self.networks.append(nw)
+                return nw
+            else:
+                source_nw = random.choice(self.networks)
+                if source_nw.veto_spawn_network():
+                    print(f'{source_nw.name} is vetoing spawn network. Number of associated networks: {len(source_nw.associated_networks)}')
+                    return None
+                else:
+                    target_nw = source_nw.spawn_network()
+                    self.networks.append(target_nw)
+                    return target_nw
 
     def print(self):
         for nw in self.networks:
@@ -74,14 +78,15 @@ class Sampler():
         self.current_model = Model()
 
     def sample(self):
-        print(f'Initial probability: {self.current_model.probability()}')
         self.current_model.add_network()
-        print(f'One network probability: {self.current_model.probability()}')
-        self.current_model.add_network()
-        print(f'Two network probability: {self.current_model.probability()}')
-        self.current_model.add_network()
-        print(f'Three network probability: {self.current_model.probability()}')
         self.current_model.print()
+        self.current_model.add_network()
+        self.current_model.print()
+        self.current_model.add_network()
+        self.current_model.print()
+        self.current_model.add_network()
+        self.current_model.print()
+
 
 if __name__ == "__main__":
     sampler = Sampler()
