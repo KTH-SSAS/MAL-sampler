@@ -50,10 +50,26 @@ class VMInstance(Asset):
         print(
             f'VMInstance: {self.name}. Networks: {[nw.name for nw in self.networks]}')
 
+class Principal(Asset):
+    def __init__(self, name: str):
+        super().__init__(name)
+
+class Role(Asset):
+    def __init__(self, name: str):
+        super().__init__(name)
+
+class ComputeOSAdminLogin(Role):
+    def __init__(self, name: str):
+        super().__init__(name)
+
+class ComputeOSLogin(Role):
+    def __init__(self, name: str):
+        super().__init__(name)
 
 class Model():
     def __init__(self):
         self.n_networks = 1 + binom(n=30, p=0.5).rvs()
+        self.n_principals = 1 + binom(n=10*self.n_networks, p=0.05).rvs()
         self.networks = set()
         self.vm_instances = set()
 
@@ -64,6 +80,14 @@ class Model():
         else:
             print('Cannot add more networks')
         return self.n_networks - len(self.networks)
+
+    def add_principal(self):
+        if len(self.principals) <= self.n_principals:
+            principal = Principal(f'Principal_{len(self.principals)}')
+            self.principals.add(principal)
+        else:
+            print('Cannot add more principals')
+        return self.n_principals - len(self.principals)
 
     def associate_networks_to_networks(self):
         available_networks = [
