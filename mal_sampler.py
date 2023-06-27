@@ -4,9 +4,6 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import sys
 
-# For all possible actions, compute likelihood of resulting model.
-# Choose action that maximizes likelihood.
-
 
 class Asset:
     def __init__(self, name: str, asset_type_name: str):
@@ -20,52 +17,6 @@ class Asset:
 
     def print(self):
         print(f"{self.asset_type_name}: {self.name}. Associated assets: {[(n, [a.name for a in list(self.associated_assets[n])]) for n in self.associated_assets]}")
-
-
-class Network(Asset):
-    def __init__(self, name: str):
-        super().__init__(name, 'network')
-        self.n_associated_assets['network'] = 1 + binom(n=500, p=0.005).rvs()
-        self.n_associated_assets['vm_instance'] = 1 + binom(n=1000, p=0.005).rvs()
-        self.associated_assets['network'] = set()
-        self.associated_assets['vm_instance'] = set()
-
-
-class VMInstance(Asset):
-    def __init__(self, name: str):
-        super().__init__(name, 'vm_instance')
-        self.n_associated_assets['network'] = 1
-        self.n_associated_assets['admin'] = 1
-        self.associated_assets['network'] = set()
-        self.associated_assets['admin'] = set()
-    
-
-class Principal(Asset):
-    def __init__(self, name: str):
-        super().__init__(name, 'principal')
-        self.n_associated_assets['admin'] = binom(n=200, p=0.1).rvs()
-        self.associated_assets['admin'] = set()
-
-
-class Role(Asset):
-    def __init__(self, name: str, asset_type_name: str):
-        super().__init__(name, asset_type_name)
-        self.associated_assets['vm_instance'] = set()
-        self.associated_assets['principal'] = set()
-
-
-class ComputeOSAdminLogin(Role):
-    def __init__(self, name: str):
-        super().__init__(name, 'admin')
-        self.n_associated_assets['vm_instance'] = 1
-        self.n_associated_assets['principal'] = 1 + binom(n=5, p=0.1).rvs()
-
-
-class ComputeOSLogin(Role):
-    def __init__(self, name: str):
-        super().__init__(name, 'login')
-        self.n_associated_assets['vm_instance'] = binom(n=30, p=0.5).rvs()
-        self.n_associated_assets['principal'] = 1 + binom(n=5, p=0.1).rvs()
 
 
 class Model():
@@ -86,15 +37,33 @@ class Model():
         a = None
         if len(self.assets[asset_type]) < self.n_assets[asset_type]:
             if asset_type == 'network':
-                a = Network(f"N{len(self.assets[asset_type])}")
+                a = Asset(f"N{len(self.assets[asset_type])}", asset_type)
+                a.n_associated_assets['network'] = 1 + binom(n=500, p=0.005).rvs()
+                a.n_associated_assets['vm_instance'] = 1 + binom(n=1000, p=0.005).rvs()
+                a.associated_assets['network'] = set()
+                a.associated_assets['vm_instance'] = set()
             elif asset_type == 'principal':
-                a = Principal(f"P{len(self.assets[asset_type])}")
+                a = Asset(f"P{len(self.assets[asset_type])}", asset_type)
+                a.n_associated_assets['admin'] = binom(n=200, p=0.1).rvs()
+                a.associated_assets['admin'] = set()
             elif asset_type == 'vm_instance':
-                a = VMInstance(f"VM{len(self.assets[asset_type])}")
+                a = Asset(f"VM{len(self.assets[asset_type])}", asset_type)
+                a.n_associated_assets['network'] = 1
+                a.n_associated_assets['admin'] = 1
+                a.associated_assets['network'] = set()
+                a.associated_assets['admin'] = set()
             elif asset_type == 'admin':
-                a = ComputeOSAdminLogin(f"A{len(self.assets[asset_type])}")
+                a = Asset(f"A{len(self.assets[asset_type])}", asset_type)
+                a.associated_assets['vm_instance'] = set()
+                a.associated_assets['principal'] = set()
+                a.n_associated_assets['vm_instance'] = 1
+                a.n_associated_assets['principal'] = 1 + binom(n=5, p=0.1).rvs()
             elif asset_type == 'login':
-                a = ComputeOSLogin(f"L{len(self.assets[asset_type])}")
+                a = Asset(f"L{len(self.assets[asset_type])}", asset_type)
+                a.associated_assets['vm_instance'] = set()
+                a.associated_assets['principal'] = set()
+                a.n_associated_assets['vm_instance'] = binom(n=30, p=0.5).rvs()
+                a.n_associated_assets['principal'] = 1 + binom(n=5, p=0.1).rvs()
             else:
                 raise ValueError(f'Unknown asset type: {asset_type}')
             self.assets[asset_type].add(a)
