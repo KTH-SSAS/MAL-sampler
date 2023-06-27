@@ -24,19 +24,21 @@ class Model:
     def __init__(self, metamodel: dict):
         self.n_assets = dict()
         self.assets = dict()
-        self.n_assets['network'] = 1 + binom(n=30, p=0.5).rvs()
-        self.n_assets['principal'] = 1 + \
-            binom(n=10*self.n_assets['network'], p=0.05).rvs()
-        self.n_assets['vm_instance'] = 100
-        self.n_assets['admin'] = sys.maxsize
-        self.n_assets['login'] = sys.maxsize
-        self.assets['network'] = set()
-        self.assets['vm_instance'] = set()
-        self.assets['principal'] = set()
-        self.assets['admin'] = set()
+        self.metamodel = metamodel
+
+        for asset_type in self.metamodel:
+            if self.metamodel[asset_type]['n']['distribution'] == 'Binomial':
+                self.n_assets[asset_type] = binom(
+                    n=self.metamodel[asset_type]['n']['n'], p=self.metamodel[asset_type]['n']['p']).rvs()
+            elif self.metamodel[asset_type]['n']['distribution'] == 'Constant':
+                self.n_assets[asset_type] = self.metamodel[asset_type]['n']['n']
+            elif self.metamodel[asset_type]['n']['distribution'] == 'BinomialPlusOne':
+                self.n_assets[asset_type] = binom(
+                    n=self.metamodel[asset_type]['n']['n'], p=self.metamodel[asset_type]['n']['p']).rvs() + 1
+            self.assets[asset_type] = set()
+            print(f'self.n_assets[{asset_type}]: n = {self.n_assets[asset_type]}.')
 
     def add(self, asset_type: str):
-        a = None
         if len(self.assets[asset_type]) < self.n_assets[asset_type]:
             if asset_type == 'network':
                 a = Asset(f"N{len(self.assets[asset_type])}", asset_type)
@@ -73,10 +75,11 @@ class Model:
             else:
                 raise ValueError(f'Unknown asset type: {asset_type}')
             self.assets[asset_type].add(a)
+            return a
         else:
             print(
                 f'Reached the limit of {self.n_assets[asset_type]} {asset_type} assets.')
-        return a
+            return None
 
     def associate(self, source_asset_type: str, target_asset_type: str):
         print(
@@ -94,12 +97,8 @@ class Model:
 
             available_target_assets = [
                 a for a in self.assets[target_asset_type] if a.accepts(source_asset_type)]
-            print(
-                f'Prelim 1: Found {len(available_target_assets)} {target_asset_type} to associate to {source_asset_type}')
             available_target_assets = [
                 a for a in available_target_assets if a not in source_asset.associated_assets[target_asset_type]]
-            print(
-                f'Prelim 2: Found {len(available_target_assets)} {target_asset_type} to associate to {source_asset_type}')
             if target_asset_type == source_asset_type:
                 available_target_assets = [
                     a for a in available_target_assets if a != source_asset]
@@ -157,30 +156,47 @@ class Model:
 class Sampler():
     def __init__(self):
         metamodel = {  'network': { 'abbreviation': 'N',
-                                    'n': ('BinomialPlusOne', 30, 0.5), 
+                                    'n': {              'distribution': 'BinomialPlusOne', 
+                                                        'n': 30, 
+                                                        'p': 0.5}, 
                                     'associated_assets': {
-                                        'network': ('Binomial', 500, 0.005), 
-                                        'vm_instance': ('Binomial', 1000, 0.005)}},
+                                        'network': {    'distribution': 'Binomial', 
+                                                        'n': 500, 
+                                                        'p': 0.005}, 
+                                        'vm_instance': {'distribution': 'Binomial', 
+                                                        'n': 1000, 
+                                                        'p': 0.005}}},
             'vm_instance': {        'abbreviation': 'VM',
-                                    'n': ('Constant', 100),
+                                    'n': {              'distribution': 'Constant', 
+                                                         'n': 100},
                                     'associated_assets': {
-                                        'network': ('Constant', 1),
-                                        'admin': ('Constant', 1)}},
+                                        'network': {    'distribution': 'Constant', 
+                                                        'n': 1},
+                                        'admin': {      'distribution': 'Constant', 
+                                                        'n': 1}}},
             'admin': {              'abbreviation': 'A',
-                                    'n': ('Constant', sys.maxsize),
+                                    'n': {              'distribution': 'Constant', 
+                                                        'n': sys.maxsize},
                                     'associated_assets': {
-                                        'vm_instance': ('Constant', 1),
-                                        'principal': ('BinomialPlusOne', 5, 0.1)}},
+                                        'vm_instance': {'distribution': 'Constant', 
+                                                        'n': 1},
+                                        'principal': {  'distribution': 'BinomialPlusOne', 
+                                                        'n': 5, 
+                                                        'p': 0.1}}},
             'principal': {          'abbreviation': 'P',
-                                    'n': ('BinomialPlusOne', 100, 0.05),
+                                    'n': {              'distribution': 'BinomialPlusOne', 
+                                                        'n': 100, 
+                                                        'p': 0.05},
                                     'associated_assets': {
-                                        'admin': ('Binomial', 200, 0.1)}}}
+                                        'admin': {  'distribution': 'Binomial', 
+                                                    'n': 200, 
+                                                    'p': 0.1}}}}
         self.model = Model(metamodel)
 
     def sample(self):
         print('Adding networks')
         while self.model.add('network'):
-            pass
+            print(f'Added {len(self.model.assets["network"])} networks')
         print('Adding principals')
         while self.model.add('principal'):
             pass
