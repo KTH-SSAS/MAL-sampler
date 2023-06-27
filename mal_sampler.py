@@ -49,8 +49,6 @@ class Model:
             else:
                 raise ValueError(f'Unknown asset type: {asset_type}')
             self.assets[asset_type].add(a)
-            print(f'Added asset {a.name} of type {a.asset_type_name}.')
-            a.print()
             return a
         else:
             print(
@@ -58,17 +56,11 @@ class Model:
             return None
 
     def associate(self, source_asset_type: str, target_asset_type: str):
-        print(
-            f'Attempting to associate some {source_asset_type} to some {target_asset_type}')
         available_source_assets = [
             a for a in self.assets[source_asset_type] if a.accepts(target_asset_type)]
         if len(available_source_assets) == 0:
-            print(
-                f'Could not find, and would not create, source {source_asset_type} to associate to {target_asset_type}')
             return False
         else:
-            print(
-                f'Found {len(available_source_assets)} {source_asset_type} to associate to {target_asset_type}')
             source_asset = random.choice(available_source_assets)
 
             available_target_assets = [
@@ -78,13 +70,9 @@ class Model:
             if target_asset_type == source_asset_type:
                 available_target_assets = [
                     a for a in available_target_assets if a != source_asset]
-            print(
-                f'Found {len(available_target_assets)} {target_asset_type} to associate to {source_asset_type}')
             if len(available_target_assets) > 0:
                 target_asset = random.choice(available_target_assets)
             else:
-                print(
-                    f'Not enough {target_asset_type} to associate to {source_asset_type}. Attempting to create one.')
                 target_asset = self.add(target_asset_type)
 
             if target_asset:
@@ -92,11 +80,8 @@ class Model:
                     target_asset)
                 target_asset.associated_assets[source_asset_type].add(
                     source_asset)
-                print(f'Associated {source_asset.name} to {target_asset.name}')
                 return True
             else:
-                print(
-                    f'Could not find or create target {target_asset_type} to associate to {source_asset_type}')
                 return False
 
     def print(self):
@@ -114,14 +99,12 @@ class Model:
                         G.add_edge(asset.name, associated_asset.name)
         pos = nx.spring_layout(G, k=0.25, iterations=50)
         plt.figure(facecolor='black')
-        nx.draw_networkx_nodes(G, pos, nodelist=[nw.name for nw in self.assets['network']],
-                               node_shape='s', node_color='red', edgecolors='white', linewidths=0.5, node_size=50)
-        nx.draw_networkx_nodes(G, pos, nodelist=[ah.name for ah in self.assets['vm_instance']],
-                               node_shape='o', node_color='blue', edgecolors='white', linewidths=0.5, node_size=50)
-        nx.draw_networkx_nodes(G, pos, nodelist=[p.name for p in self.assets['principal']],
-                               node_shape='^', node_color='green', edgecolors='white', linewidths=0.5, node_size=50)
-        nx.draw_networkx_nodes(G, pos, nodelist=[a.name for a in self.assets['admin']],
-                               node_shape='v', node_color='yellow', edgecolors='white', linewidths=0.5, node_size=50)
+        for asset_type_name in self.metamodel.keys():
+            shape = self.metamodel[asset_type_name]['visualization']['shape']
+            color = self.metamodel[asset_type_name]['visualization']['color']
+            nx.draw_networkx_nodes(G, pos, nodelist=[nw.name for nw in self.assets[asset_type_name]],
+                                node_shape=shape, node_color=color, edgecolors='white', linewidths=0.5, node_size=50)
+
         nx.draw_networkx_edges(G, pos, edge_color='white', width=0.5)
         nx.draw_networkx_labels(G, pos, font_color='white', font_size=2)
         plt.axis('off')
@@ -131,64 +114,76 @@ class Model:
 
 class Sampler():
     def __init__(self, metamodel: dict):
+        self.metamodel = metamodel
         self.model = Model(metamodel)
+        self.generated_asset_types = set()
+
+    def generate_associations(self, asset_type: str):
+        self.generated_asset_types.add(asset_type)
+        for associated_asset_type in list(self.metamodel[asset_type]['associated_assets'].keys()):
+            print(f'Attempting to associate {asset_type} to {associated_asset_type}')
+            while self.model.associate(asset_type, associated_asset_type):
+                pass
+            if associated_asset_type not in self.generated_asset_types:
+                self.generate_associations(associated_asset_type)
 
     def sample(self):
-        print('Adding networks')
-        while self.model.add('network'):
-            print(f'Added {len(self.model.assets["network"])} networks')
-        print('Adding principals')
-        while self.model.add('principal'):
+        initial_asset_type = random.choice(list(self.metamodel.keys()))
+        print(f'Selected {initial_asset_type} as initial asset type.')
+        while self.model.add(initial_asset_type):
             pass
-        print('Associating networks to networks')
-        while self.model.associate('network', 'network'):
-            pass
-        while self.model.associate('network', 'vm_instance'):
-            pass
-        while self.model.associate('vm_instance', 'admin'):
-            pass
-        while self.model.associate('admin', 'principal'):
-            pass
-        self.model.print()
+        self.generate_associations(initial_asset_type)
+ 
+        # self.model.print()
         self.model.plot()
 
 
 if __name__ == "__main__":
-    metamodel = {  'network': { 'abbreviation': 'N',
+    metamodel = {   'network': { 'abbreviation': 'N',
                                 'n': {              'distribution': 'BinomialPlusOne', 
                                                     'n': 30, 
                                                     'p': 0.5}, 
                                 'associated_assets': {
-                                    'network': {    'distribution': 'Binomial', 
+                                    'network': {    'distribution': 'BinomialPlusOne', 
                                                     'n': 500, 
                                                     'p': 0.005}, 
                                     'vm_instance': {'distribution': 'Binomial', 
                                                     'n': 1000, 
-                                                    'p': 0.005}}},
-        'vm_instance': {        'abbreviation': 'VM',
-                                'n': {              'distribution': 'Constant', 
-                                                        'n': 100},
+                                                    'p': 0.005}},
+                                'visualization': {  'shape': 's',
+                                                    'color': 'red'}},
+                    'vm_instance': {        'abbreviation': 'VM',
+                                'n': {              'distribution': 'BinomialPlusOne', 
+                                                        'n': 200,
+                                                        'p': 0.5},
                                 'associated_assets': {
                                     'network': {    'distribution': 'Constant', 
                                                     'n': 1},
-                                    'admin': {      'distribution': 'Constant', 
-                                                    'n': 1}}},
-        'admin': {              'abbreviation': 'A',
-                                'n': {              'distribution': 'Constant', 
-                                                    'n': sys.maxsize},
+                                    'admin_privileges': {      'distribution': 'Constant', 
+                                                    'n': 1}},
+                                'visualization': {  'shape': 'o',
+                                                    'color': 'blue'}},
+                    'admin_privileges': {              'abbreviation': 'A',
+                                'n': {              'distribution': 'BinomialPlusOne', 
+                                                    'n': 200,
+                                                    'p': 0.5},
                                 'associated_assets': {
                                     'vm_instance': {'distribution': 'Constant', 
                                                     'n': 1},
                                     'principal': {  'distribution': 'BinomialPlusOne', 
                                                     'n': 5, 
-                                                    'p': 0.1}}},
-        'principal': {          'abbreviation': 'P',
+                                                    'p': 0.1}},
+                                'visualization': {  'shape': 'v',
+                                                    'color': 'yellow'}},
+                    'principal': {          'abbreviation': 'P',
                                 'n': {              'distribution': 'BinomialPlusOne', 
                                                     'n': 100, 
                                                     'p': 0.05},
                                 'associated_assets': {
-                                    'admin': {  'distribution': 'Binomial', 
+                                    'admin_privileges': {  'distribution': 'Binomial', 
                                                 'n': 200, 
-                                                'p': 0.1}}}}
+                                                'p': 0.1}},
+                                'visualization': {  'shape': '^',
+                                                    'color': 'green'}}}
     sampler = Sampler(metamodel)
     sampler.sample()
