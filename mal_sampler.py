@@ -25,56 +25,32 @@ class Model:
         self.n_assets = dict()
         self.assets = dict()
         self.metamodel = metamodel
-
         for asset_type in self.metamodel:
-            if self.metamodel[asset_type]['n']['distribution'] == 'Binomial':
-                self.n_assets[asset_type] = binom(
-                    n=self.metamodel[asset_type]['n']['n'], p=self.metamodel[asset_type]['n']['p']).rvs()
-            elif self.metamodel[asset_type]['n']['distribution'] == 'Constant':
-                self.n_assets[asset_type] = self.metamodel[asset_type]['n']['n']
-            elif self.metamodel[asset_type]['n']['distribution'] == 'BinomialPlusOne':
-                self.n_assets[asset_type] = binom(
-                    n=self.metamodel[asset_type]['n']['n'], p=self.metamodel[asset_type]['n']['p']).rvs() + 1
+            self.n_assets[asset_type] = self.sample_distribution(self.metamodel[asset_type]['n'])
             self.assets[asset_type] = set()
             print(f'self.n_assets[{asset_type}]: n = {self.n_assets[asset_type]}.')
 
+    def sample_distribution(self, distribution_dict: dict):
+        if distribution_dict['distribution'] == 'Binomial':
+            return binom(n=distribution_dict['n'], p=distribution_dict['p']).rvs()
+        elif distribution_dict['distribution'] == 'Constant':
+            return distribution_dict['n']
+        elif distribution_dict['distribution'] == 'BinomialPlusOne':
+            return binom(n=distribution_dict['n'], p=distribution_dict['p']).rvs() + 1       
+
     def add(self, asset_type: str):
         if len(self.assets[asset_type]) < self.n_assets[asset_type]:
-            if asset_type == 'network':
-                a = Asset(f"N{len(self.assets[asset_type])}", asset_type)
-                a.n_associated_assets['network'] = 1 + \
-                    binom(n=500, p=0.005).rvs()
-                a.n_associated_assets['vm_instance'] = 1 + \
-                    binom(n=1000, p=0.005).rvs()
-                a.associated_assets['network'] = set()
-                a.associated_assets['vm_instance'] = set()
-            elif asset_type == 'principal':
-                a = Asset(f"P{len(self.assets[asset_type])}", asset_type)
-                a.n_associated_assets['admin'] = binom(n=200, p=0.1).rvs()
-                a.associated_assets['admin'] = set()
-            elif asset_type == 'vm_instance':
-                a = Asset(f"VM{len(self.assets[asset_type])}", asset_type)
-                a.n_associated_assets['network'] = 1
-                a.n_associated_assets['admin'] = 1
-                a.associated_assets['network'] = set()
-                a.associated_assets['admin'] = set()
-            elif asset_type == 'admin':
-                a = Asset(f"A{len(self.assets[asset_type])}", asset_type)
-                a.associated_assets['vm_instance'] = set()
-                a.associated_assets['principal'] = set()
-                a.n_associated_assets['vm_instance'] = 1
-                a.n_associated_assets['principal'] = 1 + \
-                    binom(n=5, p=0.1).rvs()
-            elif asset_type == 'login':
-                a = Asset(f"L{len(self.assets[asset_type])}", asset_type)
-                a.associated_assets['vm_instance'] = set()
-                a.associated_assets['principal'] = set()
-                a.n_associated_assets['vm_instance'] = binom(n=30, p=0.5).rvs()
-                a.n_associated_assets['principal'] = 1 + \
-                    binom(n=5, p=0.1).rvs()
+            if asset_type in self.metamodel:
+                abbreviation = self.metamodel[asset_type]['abbreviation']
+                a = Asset(f"{abbreviation}{len(self.assets[asset_type])}", asset_type)
+                for asset_name, dist_dict in self.metamodel[asset_type]['associated_assets'].items():
+                    a.n_associated_assets[asset_name] = self.sample_distribution(dist_dict)
+                    a.associated_assets[asset_name] = set()
             else:
                 raise ValueError(f'Unknown asset type: {asset_type}')
             self.assets[asset_type].add(a)
+            print(f'Added asset {a.name} of type {a.asset_type_name}.')
+            a.print()
             return a
         else:
             print(
@@ -154,43 +130,7 @@ class Model:
 
 
 class Sampler():
-    def __init__(self):
-        metamodel = {  'network': { 'abbreviation': 'N',
-                                    'n': {              'distribution': 'BinomialPlusOne', 
-                                                        'n': 30, 
-                                                        'p': 0.5}, 
-                                    'associated_assets': {
-                                        'network': {    'distribution': 'Binomial', 
-                                                        'n': 500, 
-                                                        'p': 0.005}, 
-                                        'vm_instance': {'distribution': 'Binomial', 
-                                                        'n': 1000, 
-                                                        'p': 0.005}}},
-            'vm_instance': {        'abbreviation': 'VM',
-                                    'n': {              'distribution': 'Constant', 
-                                                         'n': 100},
-                                    'associated_assets': {
-                                        'network': {    'distribution': 'Constant', 
-                                                        'n': 1},
-                                        'admin': {      'distribution': 'Constant', 
-                                                        'n': 1}}},
-            'admin': {              'abbreviation': 'A',
-                                    'n': {              'distribution': 'Constant', 
-                                                        'n': sys.maxsize},
-                                    'associated_assets': {
-                                        'vm_instance': {'distribution': 'Constant', 
-                                                        'n': 1},
-                                        'principal': {  'distribution': 'BinomialPlusOne', 
-                                                        'n': 5, 
-                                                        'p': 0.1}}},
-            'principal': {          'abbreviation': 'P',
-                                    'n': {              'distribution': 'BinomialPlusOne', 
-                                                        'n': 100, 
-                                                        'p': 0.05},
-                                    'associated_assets': {
-                                        'admin': {  'distribution': 'Binomial', 
-                                                    'n': 200, 
-                                                    'p': 0.1}}}}
+    def __init__(self, metamodel: dict):
         self.model = Model(metamodel)
 
     def sample(self):
@@ -214,5 +154,41 @@ class Sampler():
 
 
 if __name__ == "__main__":
-    sampler = Sampler()
+    metamodel = {  'network': { 'abbreviation': 'N',
+                                'n': {              'distribution': 'BinomialPlusOne', 
+                                                    'n': 30, 
+                                                    'p': 0.5}, 
+                                'associated_assets': {
+                                    'network': {    'distribution': 'Binomial', 
+                                                    'n': 500, 
+                                                    'p': 0.005}, 
+                                    'vm_instance': {'distribution': 'Binomial', 
+                                                    'n': 1000, 
+                                                    'p': 0.005}}},
+        'vm_instance': {        'abbreviation': 'VM',
+                                'n': {              'distribution': 'Constant', 
+                                                        'n': 100},
+                                'associated_assets': {
+                                    'network': {    'distribution': 'Constant', 
+                                                    'n': 1},
+                                    'admin': {      'distribution': 'Constant', 
+                                                    'n': 1}}},
+        'admin': {              'abbreviation': 'A',
+                                'n': {              'distribution': 'Constant', 
+                                                    'n': sys.maxsize},
+                                'associated_assets': {
+                                    'vm_instance': {'distribution': 'Constant', 
+                                                    'n': 1},
+                                    'principal': {  'distribution': 'BinomialPlusOne', 
+                                                    'n': 5, 
+                                                    'p': 0.1}}},
+        'principal': {          'abbreviation': 'P',
+                                'n': {              'distribution': 'BinomialPlusOne', 
+                                                    'n': 100, 
+                                                    'p': 0.05},
+                                'associated_assets': {
+                                    'admin': {  'distribution': 'Binomial', 
+                                                'n': 200, 
+                                                'p': 0.1}}}}
+    sampler = Sampler(metamodel)
     sampler.sample()
