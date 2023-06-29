@@ -11,6 +11,7 @@ class Asset:
         self.asset_type_name = asset_type_name
         self.n_associated_assets = dict()
         self.associated_assets = dict()
+        self.generation_completed = False
 
     def accepts(self, asset_type: str):
         if asset_type not in self.n_associated_assets:
@@ -20,7 +21,7 @@ class Asset:
 
     def print(self):
         print(
-            f"{self.asset_type_name}: {self.name}. Associated assets: {[(n, [a.name for a in list(self.associated_assets[n])]) for n in self.associated_assets]}")
+            f"{self.asset_type_name}: {self.name}. Associated assets: {[(n, [a.name for a in list(self.associated_assets[n])]) for n in self.associated_assets]}. Associated asset limits: {self.n_associated_assets}")
 
 
 class Model:
@@ -38,6 +39,12 @@ class Model:
                 self.n_assets[asset_type] = sys.maxsize
             self.assets[asset_type] = set()
 
+    def all_assets(self):
+        return [a for asset_type in self.assets for a in self.assets[asset_type]]
+
+    def incomplete_assets(self):
+        return [a for a in self.all_assets() if not a.generation_completed]
+
     def sample_distribution(self, distribution_dict: dict):
         if distribution_dict['distribution'] == 'Binomial':
             return binom(n=distribution_dict['n'], p=distribution_dict['p']).rvs()
@@ -47,6 +54,7 @@ class Model:
             return binom(n=distribution_dict['n'], p=distribution_dict['p']).rvs() + 1
 
     def add(self, asset_type: str):
+        print(f"  Attempting to add asset of type {asset_type}.")
         if len(self.assets[asset_type]) < self.n_assets[asset_type]:
             if asset_type in self.metamodel:
                 abbreviation = self.metamodel[asset_type]['abbreviation']
@@ -56,45 +64,75 @@ class Model:
                     a.n_associated_assets[asset_name] = self.sample_distribution(
                         dist_dict)
                     a.associated_assets[asset_name] = set()
+                print('  Added ', end='')
+                a.print()
             else:
                 raise ValueError(f'Unknown asset type: {asset_type}')
             self.assets[asset_type].add(a)
             return a
         else:
             print(
-                f'Reached the limit of {self.n_assets[asset_type]} {asset_type} assets.')
+                f'--Reached the limit of {self.n_assets[asset_type]} {asset_type} assets.')
             return None
 
-    def associate_randomly(self, source_asset_type: str, target_asset_type: str):
-        available_source_assets = [
-            a for a in self.assets[source_asset_type] if a.accepts(target_asset_type)]
-        if len(available_source_assets) == 0:
-            return False
+    def associate(self, source_asset, target_asset_type, source_asset_type, target_asset):
+        source_asset.associated_assets[target_asset_type].add(
+                target_asset)
+        if source_asset_type not in target_asset.associated_assets:
+            target_asset.associated_assets[source_asset_type] = set()
+        target_asset.associated_assets[source_asset_type].add(
+                source_asset)
+
+    def find_target_and_associate(self, source_asset: Asset, target_asset_type:str):
+        print(f"  Finding target asset of type {target_asset_type} for source asset {source_asset.name}.")
+        source_asset_type = source_asset.asset_type_name
+        available_target_assets = [
+            a for a in self.assets[target_asset_type] if a.accepts(source_asset_type)]
+        available_target_assets = [
+            a for a in available_target_assets if a not in source_asset.associated_assets[target_asset_type]]
+        if target_asset_type == source_asset_type:
+            available_target_assets = [
+                a for a in available_target_assets if a != source_asset]
+        if len(available_target_assets) > 0:
+            target_asset = random.choice(available_target_assets)
+            print(f"  Found target asset {target_asset.name}.")
         else:
-            source_asset = random.choice(available_source_assets)
+            print(f"  Could not find target asset.")
+            target_asset = self.add(target_asset_type)
 
-            available_target_assets = [
-                a for a in self.assets[target_asset_type] if a.accepts(source_asset_type)]
-            available_target_assets = [
-                a for a in available_target_assets if a not in source_asset.associated_assets[target_asset_type]]
-            if target_asset_type == source_asset_type:
-                available_target_assets = [
-                    a for a in available_target_assets if a != source_asset]
-            if len(available_target_assets) > 0:
-                target_asset = random.choice(available_target_assets)
-            else:
-                target_asset = self.add(target_asset_type)
+        if target_asset:
+            self.associate(source_asset, target_asset_type, source_asset_type, target_asset)
+            return target_asset
+        else:
+            return None
 
-            if target_asset:
-                source_asset.associated_assets[target_asset_type].add(
-                    target_asset)
-                if source_asset_type not in target_asset.associated_assets:
-                    target_asset.associated_assets[source_asset_type] = set()
-                target_asset.associated_assets[source_asset_type].add(
-                    source_asset)
-                return True
-            else:
-                return False
+    def select_initial_asset_type(self):
+        available_inital_asset_types = [a for a in list(
+            self.metamodel.keys()) if 'n' in self.metamodel[a]]
+        return random.choice(available_inital_asset_types)
+
+    def generate_associations_by_asset(self, asset: Asset):
+        for associated_asset_type in asset.n_associated_assets.keys():
+            while asset.n_associated_assets[associated_asset_type] > len(asset.associated_assets[associated_asset_type]):
+                print(f'  {asset.name} has {len(asset.associated_assets[associated_asset_type])} associated {associated_asset_type} assets of {asset.n_associated_assets[associated_asset_type]} required associated assets.')
+                print(f'  Generating association from {asset.name} to asset type {associated_asset_type} because it has {len(asset.associated_assets[associated_asset_type])} of {asset.n_associated_assets[associated_asset_type]} required associated assets.')
+                target_asset = self.find_target_and_associate(asset, associated_asset_type)
+                if not target_asset:
+                    print(f'  Could not find target asset for {asset.name} to associate with. Aborting.')
+                    asset.generation_completed = True
+                    break
+        asset.generation_completed = True
+
+    def sample(self):
+        initial_asset_type = self.select_initial_asset_type()
+        print(f'Selected {initial_asset_type} as initial asset type.')
+        asset = self.add(initial_asset_type)        
+        print(f'Added {asset.name} as initial asset. Now generating associations.')
+        self.generate_associations_by_asset(asset)
+        while self.incomplete_assets():
+            asset = random.choice(self.incomplete_assets())
+            print(f'Now generating associations for {asset.asset_type_name} {asset.name}.')
+            self.generate_associations_by_asset(asset)
 
     def print(self):
         for asset_type in self.assets.keys():
@@ -124,36 +162,8 @@ class Model:
                     pad_inches=0, facecolor='black')
 
 
-class Sampler():
-    def __init__(self, metamodel: dict):
-        self.metamodel = metamodel
-        self.model = Model(metamodel)
-        self.generated_asset_types = set()
 
-    def select_initial_asset_type(self):
-        available_inital_asset_types = [a for a in list(
-            self.metamodel.keys()) if 'n' in self.metamodel[a]]
-        return random.choice(available_inital_asset_types)
 
-    def generate_associations(self, asset_type: str):
-        self.generated_asset_types.add(asset_type)
-        for associated_asset_type in list(self.metamodel[asset_type]['associated_assets'].keys()):
-            print(
-                f'Attempting to associate {asset_type} to {associated_asset_type}')
-            while self.model.associate_randomly(asset_type, associated_asset_type):
-                pass
-            if associated_asset_type not in self.generated_asset_types:
-                self.generate_associations(associated_asset_type)
-
-    def sample(self):
-        initial_asset_type = self.select_initial_asset_type()
-        print(f'Selected {initial_asset_type} as initial asset type.')
-        while self.model.add(initial_asset_type):
-            pass
-        self.generate_associations(initial_asset_type)
-
-        # self.model.print()
-        self.model.plot()
 
 
 if __name__ == "__main__":
@@ -204,7 +214,7 @@ if __name__ == "__main__":
                                                            'visualization': {'shape': '^',
                                                                              'color': 'green'}}}
 
-    minimal_metamodel = {'network': {'abbreviation': 'N',
+    minimally_specified_metamodel = {'network': {'abbreviation': 'N',
                                      'n': {'distribution': 'BinomialPlusOne',
                                            'n': 30,
                                            'p': 0.5},
@@ -242,8 +252,42 @@ if __name__ == "__main__":
                                        'visualization': {'shape': '^',
                                                          'color': 'green'}}}
 
-    sampler = Sampler(minimal_metamodel)
-    sampler.sample()
+    minimal_constant_metamodel = {'network': {'abbreviation': 'N',
+                                     'n': {'distribution': 'Constant',
+                                           'n': 3},
+                                     'associated_assets': {
+                                         'network': {'distribution': 'Constant',
+                                                     'n': 2},
+                                         'vm_instance': {'distribution': 'Constant',
+                                                         'n': 3}},
+                                     'visualization': {'shape': 's',
+                                                       'color': 'red'}},
+                         'vm_instance': {'abbreviation': 'VM',
+                                         'associated_assets': {
+                                             'network': {'distribution': 'Constant',
+                                                         'n': 1},
+                                             'admin_privileges': {'distribution': 'Constant',
+                                                                  'n': 1}},
+                                         'visualization': {'shape': 'o',
+                                                           'color': 'blue'}},
+                         'admin_privileges': {'abbreviation': 'A',
+                                              'associated_assets': {
+                                                  'vm_instance': {'distribution': 'Constant',
+                                                                  'n': 1},
+                                                  'principal': {'distribution': 'Constant',
+                                                                'n': 1}},
+                                              'visualization': {'shape': 'v',
+                                                                'color': 'yellow'}},
+                         'principal': {'abbreviation': 'P',
+                                       'associated_assets': {
+                                           'admin_privileges': {'distribution': 'Constant',
+                                                                'n': 2}},
+                                       'visualization': {'shape': '^',
+                                                         'color': 'green'}}}
+
+    model = Model(minimal_constant_metamodel)
+    model.sample()
+    model.plot()
 
 
 # Something is wrong. Each admin privilege should be associated with exactly one VM, but not all are.
