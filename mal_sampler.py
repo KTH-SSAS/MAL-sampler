@@ -32,7 +32,6 @@ class Model:
         for asset_type in self.metamodel:
             if 'n' in self.metamodel[asset_type]:
                 self.n_assets[asset_type] = self.sample_distribution(self.metamodel[asset_type]['n'])
-                print(f'self.n_assets[{asset_type}]: n = {self.n_assets[asset_type]}.')
             else:
                 self.n_assets[asset_type] = sys.maxsize
             self.assets[asset_type] = set()
@@ -52,7 +51,6 @@ class Model:
             return binom(n=distribution_dict['n'], p=distribution_dict['p']).rvs() + 1
 
     def add(self, asset_type: str):
-        print(f"  Attempting to add asset of type {asset_type}.")
         if len(self.assets[asset_type]) < self.n_assets[asset_type]:
             if asset_type in self.metamodel:
                 abbreviation = self.metamodel[asset_type]['abbreviation']
@@ -62,15 +60,11 @@ class Model:
                     a.n_associated_assets[asset_name] = self.sample_distribution(
                         dist_dict)
                     a.associated_assets[asset_name] = set()
-                print('  Added ', end='')
-                a.print()
             else:
                 raise ValueError(f'Unknown asset type: {asset_type}')
             self.assets[asset_type].add(a)
             return a
         else:
-            print(
-                f'--Reached the limit of {self.n_assets[asset_type]} {asset_type} assets.')
             return None
 
     def associate(self, source_asset, target_asset_type, source_asset_type, target_asset):
@@ -82,7 +76,6 @@ class Model:
                 source_asset)
 
     def find_target_and_associate(self, source_asset: Asset, target_asset_type:str):
-        print(f"  Finding target asset of type {target_asset_type} for source asset {source_asset.name}.")
         source_asset_type = source_asset.asset_type_name
         available_target_assets = [
             a for a in self.assets[target_asset_type] if a.accepts(source_asset_type)]
@@ -93,9 +86,7 @@ class Model:
                 a for a in available_target_assets if a != source_asset]
         if len(available_target_assets) > 0:
             target_asset = random.choice(available_target_assets)
-            print(f"  Found target asset {target_asset.name}.")
         else:
-            print(f"  Could not find target asset.")
             target_asset = self.add(target_asset_type)
 
         if target_asset:
@@ -112,17 +103,21 @@ class Model:
     def generate_associations_by_asset(self, asset: Asset):
         for associated_asset_type in asset.n_associated_assets.keys():
             while asset.n_associated_assets[associated_asset_type] > len(asset.associated_assets[associated_asset_type]):
-                print(f'  {asset.name} has {len(asset.associated_assets[associated_asset_type])} associated {associated_asset_type} assets of {asset.n_associated_assets[associated_asset_type]} required associated assets.')
-                print(f'  Generating association from {asset.name} to asset type {associated_asset_type} because it has {len(asset.associated_assets[associated_asset_type])} of {asset.n_associated_assets[associated_asset_type]} required associated assets.')
                 target_asset = self.find_target_and_associate(asset, associated_asset_type)
                 if not target_asset:
-                    print(f'  Could not find target asset for {asset.name} to associate with. Aborting.')
                     asset.generation_completed = True
                     break
         asset.generation_completed = True
 
+    def sample(self):
+        initial_asset_type = self.select_initial_asset_type()
+        asset = self.add(initial_asset_type)        
+        self.generate_associations_by_asset(asset)
+        while self.incomplete_assets():
+            asset = random.choice(self.incomplete_assets())
+            self.generate_associations_by_asset(asset)
+
     def check_consistency(self):
-        print('Checking consistency of generated assets.')
         is_consistent = True
         for asset in self.all_assets():
             for associated_asset_type in asset.n_associated_assets.keys():
@@ -130,17 +125,6 @@ class Model:
                     print(f'Inconsistency: Asset {asset.name} has {len(asset.associated_assets[associated_asset_type])} associated {associated_asset_type} assets of {asset.n_associated_assets[associated_asset_type]} required associated assets.')
                     is_consistent = False
         return is_consistent
-
-    def sample(self):
-        initial_asset_type = self.select_initial_asset_type()
-        print(f'Selected {initial_asset_type} as initial asset type.')
-        asset = self.add(initial_asset_type)        
-        print(f'Added {asset.name} as initial asset. Now generating associations.')
-        self.generate_associations_by_asset(asset)
-        while self.incomplete_assets():
-            asset = random.choice(self.incomplete_assets())
-            print(f'Now generating associations for {asset.asset_type_name} {asset.name}.')
-            self.generate_associations_by_asset(asset)
 
     def print(self):
         for asset_type in self.assets.keys():
