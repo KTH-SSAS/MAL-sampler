@@ -31,10 +31,8 @@ class Model:
         self.metamodel = metamodel
         for asset_type in self.metamodel:
             if 'n' in self.metamodel[asset_type]:
-                self.n_assets[asset_type] = self.sample_distribution(
-                    self.metamodel[asset_type]['n'])
-                print(
-                    f'self.n_assets[{asset_type}]: n = {self.n_assets[asset_type]}.')
+                self.n_assets[asset_type] = self.sample_distribution(self.metamodel[asset_type]['n'])
+                print(f'self.n_assets[{asset_type}]: n = {self.n_assets[asset_type]}.')
             else:
                 self.n_assets[asset_type] = sys.maxsize
             self.assets[asset_type] = set()
@@ -122,6 +120,16 @@ class Model:
                     asset.generation_completed = True
                     break
         asset.generation_completed = True
+
+    def check_consistency(self):
+        print('Checking consistency of generated assets.')
+        is_consistent = True
+        for asset in self.all_assets():
+            for associated_asset_type in asset.n_associated_assets.keys():
+                if len(asset.associated_assets[associated_asset_type]) != asset.n_associated_assets[associated_asset_type]:
+                    print(f'Inconsistency: Asset {asset.name} has {len(asset.associated_assets[associated_asset_type])} associated {associated_asset_type} assets of {asset.n_associated_assets[associated_asset_type]} required associated assets.')
+                    is_consistent = False
+        return is_consistent
 
     def sample(self):
         initial_asset_type = self.select_initial_asset_type()
@@ -281,13 +289,12 @@ if __name__ == "__main__":
                          'principal': {'abbreviation': 'P',
                                        'associated_assets': {
                                            'admin_privileges': {'distribution': 'Constant',
-                                                                'n': 2}},
+                                                                'n': 3}},
                                        'visualization': {'shape': '^',
                                                          'color': 'green'}}}
 
-    model = Model(minimal_constant_metamodel)
+    model = Model(probably_self_contradictory_metamodel)
     model.sample()
     model.plot()
+    model.check_consistency()
 
-
-# Something is wrong. Each admin privilege should be associated with exactly one VM, but not all are.
