@@ -21,7 +21,6 @@ class ProbabilityDistribution:
         elif self.distribution == 'BinomialPlusOne':
             return binom(n=self.n, p=self.p).rvs() + 1
 
-
 class Asset:
     def __init__(self, name: str, asset_type_name: str, associated_assets_dict: dict):
         self.name = name
@@ -31,14 +30,14 @@ class Asset:
         self.generation_completed = False
         for asset_name, dist_dict in associated_assets_dict.items():
             self.n_associated_assets[asset_name] = ProbabilityDistribution(
-                dist_dict).sample()
+                dist_dict)
             self.associated_assets[asset_name] = set()
 
     def accepts(self, asset_type: str):
         if asset_type not in self.n_associated_assets:
             return False
         else:
-            return len(self.associated_assets[asset_type]) < self.n_associated_assets[asset_type]
+            return len(self.associated_assets[asset_type]) < self.n_associated_assets[asset_type].value
 
     def associate(self, target):
         self.associated_assets[target.asset_type_name].add(target)
@@ -58,7 +57,7 @@ class Asset:
 
     def print(self):
         print(
-            f"{self.asset_type_name}: {self.name}. Associated assets: {[(n, [a.name for a in list(self.associated_assets[n])]) for n in self.associated_assets]}. Associated asset limits: {self.n_associated_assets}")
+            f"{self.asset_type_name}: {self.name}. Associated assets: {[(n, [a.name for a in list(self.associated_assets[n])]) for n in self.associated_assets]}. Associated asset limits: {[n.value for n in self.n_associated_assets]}")
 
 
 class Model:
@@ -68,10 +67,9 @@ class Model:
         self.metamodel = metamodel
         for asset_type in self.metamodel:
             if 'n' in self.metamodel[asset_type]:
-                self.n_assets[asset_type] = ProbabilityDistribution(
-                    self.metamodel[asset_type]['n']).sample()
+                self.n_assets[asset_type] = ProbabilityDistribution(self.metamodel[asset_type]['n'])
             else:
-                self.n_assets[asset_type] = sys.maxsize
+                self.n_assets[asset_type] = ProbabilityDistribution({'distribution': 'Constant', 'n': sys.maxsize})
             self.assets[asset_type] = set()
 
     def select_initial_asset_type(self):
@@ -116,7 +114,7 @@ class Model:
                 if len(available_target_assets) > 0:
                     target_asset = random.choice(available_target_assets)
                 else:
-                    if len(self.assets[target_asset_type]) < self.n_assets[target_asset_type]:
+                    if len(self.assets[target_asset_type]) < self.n_assets[target_asset_type].value:
                         target_asset = self.add(target_asset_type)
                 if target_asset:
                     source_asset.associate(target_asset)
@@ -136,7 +134,7 @@ class Model:
         inconsistent_assets = []
         for asset in self.all_assets():
             for associated_asset_type in asset.n_associated_assets.keys():
-                if len(asset.associated_assets[associated_asset_type]) != asset.n_associated_assets[associated_asset_type]:
+                if len(asset.associated_assets[associated_asset_type]) != asset.n_associated_assets[associated_asset_type].value:
                     inconsistent_assets.append(asset)
         return inconsistent_assets
 
