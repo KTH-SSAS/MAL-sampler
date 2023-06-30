@@ -36,6 +36,11 @@ class Model:
                 self.n_assets[asset_type] = sys.maxsize
             self.assets[asset_type] = set()
 
+    def select_initial_asset_type(self):
+        available_inital_asset_types = [a for a in list(
+            self.metamodel.keys()) if 'n' in self.metamodel[a]]
+        return random.choice(available_inital_asset_types)
+
     def all_assets(self):
         return [a for asset_type in self.assets for a in self.assets[asset_type]]
 
@@ -75,34 +80,32 @@ class Model:
         target_asset.associated_assets[source_asset_type].add(
                 source_asset)
 
-    def find_target_and_associate(self, source_asset: Asset, target_asset_type:str):
-        source_asset_type = source_asset.asset_type_name
+    def find_available_targets(self, source_asset, target_asset_type):
         available_target_assets = [
-            a for a in self.assets[target_asset_type] if a.accepts(source_asset_type)]
+            a for a in self.assets[target_asset_type] if a.accepts(source_asset.asset_type_name)]
         available_target_assets = [
             a for a in available_target_assets if a not in source_asset.associated_assets[target_asset_type]]
-        if target_asset_type == source_asset_type:
+        if target_asset_type == source_asset.asset_type_name:
             available_target_assets = [
-                a for a in available_target_assets if a != source_asset]
+                a for a in available_target_assets if a != source_asset]         
+        return available_target_assets
+
+    def find_target_and_associate(self, source_asset: Asset, target_asset_type:str):
+        available_target_assets = self.find_available_targets(source_asset, target_asset_type)
         if len(available_target_assets) > 0:
             target_asset = random.choice(available_target_assets)
         else:
             target_asset = self.add(target_asset_type)
 
         if target_asset:
-            self.associate(source_asset, target_asset_type, source_asset_type, target_asset)
+            self.associate(source_asset, target_asset_type, source_asset.asset_type_name, target_asset)
             return target_asset
         else:
             return None
 
-    def select_initial_asset_type(self):
-        available_inital_asset_types = [a for a in list(
-            self.metamodel.keys()) if 'n' in self.metamodel[a]]
-        return random.choice(available_inital_asset_types)
-
-    def generate_associations_by_asset(self, asset: Asset):
+    def complete_associations(self, asset: Asset):
         for associated_asset_type in asset.n_associated_assets.keys():
-            while asset.n_associated_assets[associated_asset_type] > len(asset.associated_assets[associated_asset_type]):
+            while asset.accepts(associated_asset_type):
                 target_asset = self.find_target_and_associate(asset, associated_asset_type)
                 if not target_asset:
                     asset.generation_completed = True
@@ -112,10 +115,10 @@ class Model:
     def sample(self):
         initial_asset_type = self.select_initial_asset_type()
         asset = self.add(initial_asset_type)        
-        self.generate_associations_by_asset(asset)
+        self.complete_associations(asset)
         while self.incomplete_assets():
             asset = random.choice(self.incomplete_assets())
-            self.generate_associations_by_asset(asset)
+            self.complete_associations(asset)
 
     def check_consistency(self):
         is_consistent = True
@@ -273,11 +276,11 @@ if __name__ == "__main__":
                          'principal': {'abbreviation': 'P',
                                        'associated_assets': {
                                            'admin_privileges': {'distribution': 'Constant',
-                                                                'n': 3}},
+                                                                'n': 2}},
                                        'visualization': {'shape': '^',
                                                          'color': 'green'}}}
 
-    model = Model(probably_self_contradictory_metamodel)
+    model = Model(minimal_constant_metamodel)
     model.sample()
     model.plot()
     model.check_consistency()
