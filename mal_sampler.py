@@ -4,6 +4,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import sys
 
+
 class ProbabilityDistribution:
     def __init__(self, distribution_dict: dict):
         self.distribution = distribution_dict['distribution']
@@ -19,13 +20,17 @@ class ProbabilityDistribution:
         elif self.distribution == 'BinomialPlusOne':
             return binom(n=self.n, p=self.p).rvs() + 1
 
+
 class Asset:
-    def __init__(self, name: str, asset_type_name: str):
+    def __init__(self, name: str, asset_type_name: str, associated_assets_dict: dict):
         self.name = name
         self.asset_type_name = asset_type_name
         self.n_associated_assets = dict()
         self.associated_assets = dict()
         self.generation_completed = False
+        for asset_name, dist_dict in associated_assets_dict.items():
+            self.n_associated_assets[asset_name] = ProbabilityDistribution(dist_dict).sample()
+            self.associated_assets[asset_name] = set()
 
     def accepts(self, asset_type: str):
         if asset_type not in self.n_associated_assets:
@@ -58,18 +63,11 @@ class Model:
     def all_assets(self):
         return [a for asset_type in self.assets for a in self.assets[asset_type]]
 
-    def incomplete_assets(self):
+    def incompletely_associated_assets(self):
         return [a for a in self.all_assets() if not a.generation_completed]
 
-    def sample_distribution(self, distribution_dict: dict):
-        if distribution_dict['distribution'] == 'Binomial':
-            return binom(n=distribution_dict['n'], p=distribution_dict['p']).rvs()
-        elif distribution_dict['distribution'] == 'Constant':
-            return distribution_dict['n']
-        elif distribution_dict['distribution'] == 'BinomialPlusOne':
-            return binom(n=distribution_dict['n'], p=distribution_dict['p']).rvs() + 1
-
     def find_available_targets(self, source_asset, target_asset_type):
+        # 
         available_target_assets = [
             a for a in self.assets[target_asset_type] if a.accepts(source_asset.asset_type_name)]
         available_target_assets = [
@@ -83,11 +81,7 @@ class Model:
         if asset_type in self.metamodel:
             abbreviation = self.metamodel[asset_type]['abbreviation']
             a = Asset(
-                f"{abbreviation}{len(self.assets[asset_type])}", asset_type)
-            for asset_name, dist_dict in self.metamodel[asset_type]['associated_assets'].items():
-                a.n_associated_assets[asset_name] = self.sample_distribution(
-                    dist_dict)
-                a.associated_assets[asset_name] = set()
+                f"{abbreviation}{len(self.assets[asset_type])}", asset_type, self.metamodel[asset_type]['associated_assets'])
         else:
             raise ValueError(f'Unknown asset type: {asset_type}')
         self.assets[asset_type].add(a)
@@ -121,8 +115,8 @@ class Model:
         initial_asset_type = self.select_initial_asset_type()
         asset = self.add(initial_asset_type)        
         self.complete_associations(asset)
-        while self.incomplete_assets():
-            asset = random.choice(self.incomplete_assets())
+        while self.incompletely_associated_assets():
+            asset = random.choice(self.incompletely_associated_assets())
             self.complete_associations(asset)
 
     def check_consistency(self):
