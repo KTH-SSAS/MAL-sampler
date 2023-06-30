@@ -4,6 +4,21 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import sys
 
+class ProbabilityDistribution:
+    def __init__(self, distribution_dict: dict):
+        self.distribution = distribution_dict['distribution']
+        self.n = distribution_dict['n']
+        if 'p' in distribution_dict:
+            self.p = distribution_dict['p']
+
+    def sample(self):
+        if self.distribution == 'Binomial':
+            return binom(n=self.n, p=self.p).rvs()
+        elif self.distribution == 'Constant':
+            return self.n
+        elif self.distribution == 'BinomialPlusOne':
+            return binom(n=self.n, p=self.p).rvs() + 1
+
 class Asset:
     def __init__(self, name: str, asset_type_name: str):
         self.name = name
@@ -30,7 +45,7 @@ class Model:
         self.metamodel = metamodel
         for asset_type in self.metamodel:
             if 'n' in self.metamodel[asset_type]:
-                self.n_assets[asset_type] = self.sample_distribution(self.metamodel[asset_type]['n'])
+                self.n_assets[asset_type] = ProbabilityDistribution(self.metamodel[asset_type]['n']).sample()
             else:
                 self.n_assets[asset_type] = sys.maxsize
             self.assets[asset_type] = set()
