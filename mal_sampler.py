@@ -4,7 +4,6 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import sys
 
-
 class Asset:
     def __init__(self, name: str, asset_type_name: str):
         self.name = name
@@ -66,21 +65,18 @@ class Model:
         return available_target_assets
 
     def add(self, asset_type: str):
-        if len(self.assets[asset_type]) < self.n_assets[asset_type]:
-            if asset_type in self.metamodel:
-                abbreviation = self.metamodel[asset_type]['abbreviation']
-                a = Asset(
-                    f"{abbreviation}{len(self.assets[asset_type])}", asset_type)
-                for asset_name, dist_dict in self.metamodel[asset_type]['associated_assets'].items():
-                    a.n_associated_assets[asset_name] = self.sample_distribution(
-                        dist_dict)
-                    a.associated_assets[asset_name] = set()
-            else:
-                raise ValueError(f'Unknown asset type: {asset_type}')
-            self.assets[asset_type].add(a)
-            return a
+        if asset_type in self.metamodel:
+            abbreviation = self.metamodel[asset_type]['abbreviation']
+            a = Asset(
+                f"{abbreviation}{len(self.assets[asset_type])}", asset_type)
+            for asset_name, dist_dict in self.metamodel[asset_type]['associated_assets'].items():
+                a.n_associated_assets[asset_name] = self.sample_distribution(
+                    dist_dict)
+                a.associated_assets[asset_name] = set()
         else:
-            return None
+            raise ValueError(f'Unknown asset type: {asset_type}')
+        self.assets[asset_type].add(a)
+        return a
 
     def associate(self, source_asset, target_asset_type, source_asset_type, target_asset):
         source_asset.associated_assets[target_asset_type].add(
@@ -94,10 +90,12 @@ class Model:
         for target_asset_type in source_asset.n_associated_assets.keys():
             while source_asset.accepts(target_asset_type):
                 available_target_assets = self.find_available_targets(source_asset, target_asset_type)
+                target_asset = None
                 if len(available_target_assets) > 0:
                     target_asset = random.choice(available_target_assets)
                 else:
-                    target_asset = self.add(target_asset_type)
+                    if len(self.assets[target_asset_type]) < self.n_assets[target_asset_type]:
+                        target_asset = self.add(target_asset_type)
                 if target_asset:
                     self.associate(source_asset, target_asset_type, source_asset.asset_type_name, target_asset)
                 else:
