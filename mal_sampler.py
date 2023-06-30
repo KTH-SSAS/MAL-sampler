@@ -11,6 +11,7 @@ class ProbabilityDistribution:
         self.n = distribution_dict['n']
         if 'p' in distribution_dict:
             self.p = distribution_dict['p']
+        self.value = self.sample()
 
     def sample(self):
         if self.distribution == 'Binomial':
@@ -44,6 +45,16 @@ class Asset:
         if self.asset_type_name not in target.associated_assets:
             target.associated_assets[self.asset_type_name] = set()
         target.associated_assets[self.asset_type_name].add(self)
+
+    def disassociate(self, target):
+        self.associated_assets[target.asset_type_name].remove(target)
+        target.associated_assets[self.asset_type_name].remove(self)
+
+    def disassociate_all(self):
+        for asset_type in self.associated_assets:
+            for target in self.associated_assets[asset_type]:
+                target.associated_assets[self.asset_type_name].remove(self)
+        self.associated_assets = dict()
 
     def print(self):
         print(
@@ -91,6 +102,11 @@ class Model:
         else:
             raise ValueError(f'Unknown asset type: {asset_type}')
 
+    def remove(self, asset: Asset):
+        asset.disassociate_all()
+        if asset in self.assets[asset.asset_type_name]:
+            self.assets[asset.asset_type_name].remove(asset)
+
     def complete_associations(self, source_asset: Asset):
         for target_asset_type in source_asset.n_associated_assets.keys():
             while source_asset.accepts(target_asset_type):
@@ -117,14 +133,12 @@ class Model:
             self.complete_associations(asset)
 
     def check_consistency(self):
-        is_consistent = True
+        inconsistent_assets = []
         for asset in self.all_assets():
             for associated_asset_type in asset.n_associated_assets.keys():
                 if len(asset.associated_assets[associated_asset_type]) != asset.n_associated_assets[associated_asset_type]:
-                    print(
-                        f'Inconsistency: Asset {asset.name} has {len(asset.associated_assets[associated_asset_type])} associated {associated_asset_type} assets of {asset.n_associated_assets[associated_asset_type]} required associated assets.')
-                    is_consistent = False
-        return is_consistent
+                    inconsistent_assets.append(asset)
+        return inconsistent_assets
 
     def print(self):
         for asset_type in self.assets.keys():
@@ -275,5 +289,14 @@ if __name__ == "__main__":
 
     model = Model(probably_self_contradictory_metamodel)
     model.sample()
+    inconsistent_assets = model.check_consistency()
+    print(f'Assets: {len(model.all_assets())}.')
+    print(f'Inconsistent assets: {len(inconsistent_assets)}')
+    # while inconsistent_assets:
+    #     for inconsistent_asset in inconsistent_assets:
+    #         model.remove(inconsistent_asset)
+    #     print(f'Removed {inconsistent_asset.name} from the model. Remaining assets: {len(model.all_assets())}.')
+    #     inconsistent_assets = model.check_consistency()
+    #     print(f'Remaining inconsistent assets: {len(inconsistent_assets)}')
     model.plot()
-    model.check_consistency()
+
