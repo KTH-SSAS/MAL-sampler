@@ -55,6 +55,16 @@ class Model:
         elif distribution_dict['distribution'] == 'BinomialPlusOne':
             return binom(n=distribution_dict['n'], p=distribution_dict['p']).rvs() + 1
 
+    def find_available_targets(self, source_asset, target_asset_type):
+        available_target_assets = [
+            a for a in self.assets[target_asset_type] if a.accepts(source_asset.asset_type_name)]
+        available_target_assets = [
+            a for a in available_target_assets if a not in source_asset.associated_assets[target_asset_type]]
+        if target_asset_type == source_asset.asset_type_name:
+            available_target_assets = [
+                a for a in available_target_assets if a != source_asset]         
+        return available_target_assets
+
     def add(self, asset_type: str):
         if len(self.assets[asset_type]) < self.n_assets[asset_type]:
             if asset_type in self.metamodel:
@@ -79,29 +89,6 @@ class Model:
             target_asset.associated_assets[source_asset_type] = set()
         target_asset.associated_assets[source_asset_type].add(
                 source_asset)
-
-    def find_available_targets(self, source_asset, target_asset_type):
-        available_target_assets = [
-            a for a in self.assets[target_asset_type] if a.accepts(source_asset.asset_type_name)]
-        available_target_assets = [
-            a for a in available_target_assets if a not in source_asset.associated_assets[target_asset_type]]
-        if target_asset_type == source_asset.asset_type_name:
-            available_target_assets = [
-                a for a in available_target_assets if a != source_asset]         
-        return available_target_assets
-
-    def find_target_and_associate(self, source_asset: Asset, target_asset_type:str):
-        available_target_assets = self.find_available_targets(source_asset, target_asset_type)
-        if len(available_target_assets) > 0:
-            target_asset = random.choice(available_target_assets)
-        else:
-            target_asset = self.add(target_asset_type)
-
-        if target_asset:
-            self.associate(source_asset, target_asset_type, source_asset.asset_type_name, target_asset)
-            return target_asset
-        else:
-            return None
 
     def complete_associations(self, source_asset: Asset):
         for target_asset_type in source_asset.n_associated_assets.keys():
