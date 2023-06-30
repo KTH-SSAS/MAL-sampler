@@ -39,6 +39,12 @@ class Asset:
         else:
             return len(self.associated_assets[asset_type]) < self.n_associated_assets[asset_type]
 
+    def associate(self, target):
+        self.associated_assets[target.asset_type_name].add(target)
+        if self.asset_type_name not in target.associated_assets:
+            target.associated_assets[self.asset_type_name] = set()
+        target.associated_assets[self.asset_type_name].add(self)
+
     def print(self):
         print(
             f"{self.asset_type_name}: {self.name}. Associated assets: {[(n, [a.name for a in list(self.associated_assets[n])]) for n in self.associated_assets]}. Associated asset limits: {self.n_associated_assets}")
@@ -85,14 +91,6 @@ class Model:
         else:
             raise ValueError(f'Unknown asset type: {asset_type}')
 
-    def associate(self, source_asset, target_asset_type, source_asset_type, target_asset):
-        source_asset.associated_assets[target_asset_type].add(
-            target_asset)
-        if source_asset_type not in target_asset.associated_assets:
-            target_asset.associated_assets[source_asset_type] = set()
-        target_asset.associated_assets[source_asset_type].add(
-            source_asset)
-
     def complete_associations(self, source_asset: Asset):
         for target_asset_type in source_asset.n_associated_assets.keys():
             while source_asset.accepts(target_asset_type):
@@ -105,8 +103,7 @@ class Model:
                     if len(self.assets[target_asset_type]) < self.n_assets[target_asset_type]:
                         target_asset = self.add(target_asset_type)
                 if target_asset:
-                    self.associate(source_asset, target_asset_type,
-                                   source_asset.asset_type_name, target_asset)
+                    source_asset.associate(target_asset)
                 else:
                     break
         source_asset.generation_completed = True
