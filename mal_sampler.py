@@ -103,14 +103,19 @@ class Model:
         else:
             return None
 
-    def complete_associations(self, asset: Asset):
-        for associated_asset_type in asset.n_associated_assets.keys():
-            while asset.accepts(associated_asset_type):
-                target_asset = self.find_target_and_associate(asset, associated_asset_type)
-                if not target_asset:
-                    asset.generation_completed = True
+    def complete_associations(self, source_asset: Asset):
+        for target_asset_type in source_asset.n_associated_assets.keys():
+            while source_asset.accepts(target_asset_type):
+                available_target_assets = self.find_available_targets(source_asset, target_asset_type)
+                if len(available_target_assets) > 0:
+                    target_asset = random.choice(available_target_assets)
+                else:
+                    target_asset = self.add(target_asset_type)
+                if target_asset:
+                    self.associate(source_asset, target_asset_type, source_asset.asset_type_name, target_asset)
+                else:
                     break
-        asset.generation_completed = True
+        source_asset.generation_completed = True
 
     def sample(self):
         initial_asset_type = self.select_initial_asset_type()
