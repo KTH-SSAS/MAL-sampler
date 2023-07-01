@@ -103,6 +103,23 @@ class Model:
                 print('Failed to resolve inconsistencies in 10 iterations.')
                 break
 
+    def compare_actual_samples_with_targets(self):
+        for asset_type in self.metamodel:
+            if 'n' in self.metamodel[asset_type]:
+                if len(self.assets[asset_type]) == self.n_assets[asset_type].value:
+                    print(f'{asset_type} count matches target')
+                else:
+                    print(f'Actual {asset_type}: {len(self.assets[asset_type])}, Target: {self.n_assets[asset_type].value}')
+            match_count = 0
+            mismatch_count = 0
+            for asset in self.assets[asset_type]:
+                for associated_asset_type in asset.n_associated_assets.keys():
+                    if len(asset.associated_assets[associated_asset_type]) == asset.n_associated_assets[associated_asset_type].value:
+                        match_count += 1
+                    else:
+                        mismatch_count += 1
+            print(f'{asset_type} association matches: {match_count}, mismatches: {mismatch_count}')
+
     def print(self):
         for asset_type in self.assets.keys():
             for asset in self.assets[asset_type]:
