@@ -2,7 +2,7 @@ import random
 import networkx as nx
 import matplotlib.pyplot as plt
 import sys
-from constants import N_SAMPLES_FOR_BOUNDS
+from constants import N_SAMPLES_FOR_BOUNDS, N_INCONSISTENCY_RESOLUTION_ATTEMPTS
 from probability_distribution import ProbabilityDistribution
 from asset import Asset
 
@@ -12,6 +12,10 @@ It includes functions to add and remove assets, associate assets, and generate a
 '''
 class Model:
     def __init__(self, metamodel: dict):
+        '''
+        Initialize a Model instance.
+        metamodel : A dictionary that represents the metamodel used to generate the assets.
+        '''
         self.n_assets = dict()
         self.assets = dict()
         self.metamodel = metamodel
@@ -25,17 +29,32 @@ class Model:
             self.assets[asset_type] = set()
 
     def select_initial_asset_type(self):
+        '''
+        Select the initial asset type to be added to the model.
+        '''
         available_inital_asset_types = [a for a in list(
             self.metamodel.keys())]
         return random.choice(available_inital_asset_types)
 
     def all_assets(self):
+        '''
+        Get a list of all assets in the model.
+        '''
         return [a for asset_type in self.assets for a in self.assets[asset_type]]
 
     def incompletely_associated_assets(self):
+        '''
+        Get a list of all assets that have not completed their association process.
+        '''
         return [a for a in self.all_assets() if not a.generation_completed]
 
     def available_targets(self, source_asset, target_asset_type, force_associate=False):
+        '''
+        Get a list of available targets for a source asset.
+        source_asset : The source asset that is looking for potential targets to associate with.
+        target_asset_type : The type of the potential targets.
+        force_associate : A flag that, if set to True, uses the upper limit of the number of associations instead of the current value.
+        '''
         available_target_assets = [
             a for a in self.assets[target_asset_type] if a.accepts(source_asset.asset_type_name, force_accept=force_associate) and a not in source_asset.associated_assets[target_asset_type]]
         if target_asset_type == source_asset.asset_type_name:
@@ -44,6 +63,10 @@ class Model:
         return available_target_assets
 
     def add(self, asset_type: str):
+        '''
+        Add an asset of a specified type to the model.
+        asset_type : The type of the asset to be added.
+        '''
         if asset_type in self.metamodel:
             a = Asset(
                 f"{self.metamodel[asset_type]['abbreviation']}{len(self.assets[asset_type])}", asset_type, self.metamodel[asset_type]['associated_assets'])
@@ -53,11 +76,20 @@ class Model:
             raise ValueError(f'Unknown asset type: {asset_type}')
 
     def remove(self, asset: Asset):
+        '''
+        Remove an asset from the model.
+        asset : The asset to be removed.
+        '''
         asset.disassociate_all()
         if asset in self.assets[asset.asset_type_name]:
             self.assets[asset.asset_type_name].remove(asset)
 
     def complete_associations(self, source_asset: Asset, force_associate=False):
+        '''
+        Complete the associations of a source asset.
+        source_asset : The source asset that needs to complete its associations.
+        force_associate : A flag that, if set to True, forces the association process to its upper limit.
+        '''
         for target_asset_type in source_asset.n_associated_assets.keys():
             while source_asset.accepts(target_asset_type):
                 target_asset = None
@@ -76,6 +108,9 @@ class Model:
         source_asset.generation_completed = True
 
     def sample(self):
+        '''
+        Generate a random model based on the specified metamodel.
+        '''
         initial_asset_type = self.select_initial_asset_type()
         print(f'# Initial asset type: {initial_asset_type}')
         asset = self.add(initial_asset_type)
@@ -85,7 +120,11 @@ class Model:
             self.complete_associations(asset)
             print(f'\r# Number of assets: {len(self.all_assets())}. Number of incomplete assets: {len(self.incompletely_associated_assets())}. Latest: {asset.asset_type_name} {asset.name}                         ', end='')
         print()
+
     def check_consistency(self):
+        '''
+        Check the consistency of the model. Inconsistent assets are those that have less or more associations than the specified limits.
+        '''
         inconsistent = []
         for asset in self.all_assets():
             for associated_asset_type in asset.n_associated_assets.keys():
@@ -94,6 +133,9 @@ class Model:
         return inconsistent
 
     def resolve_inconsistency(self):
+        '''
+        Resolve any inconsistencies in the model. It tries to resolve inconsistencies up to N_INCONSISTENCY_RESOLUTION_ATTEMPTS times before giving up.
+        '''
         inconsistent_assets = self.check_consistency()
         counter = 0
         while inconsistent_assets:
@@ -105,11 +147,14 @@ class Model:
             for inconsistent_asset in inconsistent_assets:
                 self.remove(inconsistent_asset)
             inconsistent_assets = self.check_consistency()
-            if counter > 10:
-                print('Failed to resolve inconsistencies in 10 iterations.')
+            if counter > N_INCONSISTENCY_RESOLUTION_ATTEMPTS:
+                print(f'Failed to resolve inconsistencies in {N_INCONSISTENCY_RESOLUTION_ATTEMPTS} iterations.')
                 break
 
     def compare_actual_samples_with_targets(self):
+        '''
+        Compare the actual number of each type of asset and their associations with the target values.
+        '''
         for asset_type in self.metamodel:
             if 'n' in self.metamodel[asset_type]:
                 if len(self.assets[asset_type]) == self.n_assets[asset_type].value:
@@ -131,6 +176,10 @@ class Model:
                 print(f'# + {asset_type} association matches: {match_count}, mismatches: {mismatch_count_dict}')
 
     def print(self, summary=True):
+        '''
+        Print the details of the model.
+        summary : If set to True, it prints only a summary of the model. Otherwise, it prints the details of each asset.
+        '''
         for asset_type in self.assets.keys():
             if summary:
                 print(f'# {asset_type}: {len(self.assets[asset_type])}')
@@ -140,6 +189,10 @@ class Model:
                     asset.print()
 
     def plot(self, filename: str):
+        '''
+        Plot the model using networkx and matplotlib.
+        filename : The filename to save the plot.
+        '''
         G = nx.Graph()
         for asset_type_name in self.assets.keys():
             for asset in self.assets[asset_type_name]:
