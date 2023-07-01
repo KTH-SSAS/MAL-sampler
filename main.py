@@ -4,7 +4,7 @@ from example_metamodel import example_metamodel
 from model import Model
 
 if __name__ == "__main__":
-    metamodel = example_metamodel(size_factor=20, initial_asset_type='network')
+    metamodel = example_metamodel(size_factor=40, size_constraining_asset_type='network')
     print(f'# Metamodel containing these assets: {[a for a in metamodel.keys()]}')
     model = Model(metamodel)
     model.sample()

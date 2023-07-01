@@ -1,4 +1,4 @@
-def example_metamodel(size_factor=10, initial_asset_type='network'):
+def example_metamodel(size_factor=10, size_constraining_asset_type='network'):
 
       network_n = {'distribution': 'BinomialPlusOne',
                         'n': 1*size_factor,
@@ -68,25 +68,25 @@ def example_metamodel(size_factor=10, initial_asset_type='network'):
                   'visualization': principal_visualization}
 
 
-      if initial_asset_type == 'network':
+      if size_constraining_asset_type == 'network':
             network = {'abbreviation': 'N',
                   'n': network_n,
                   'associated_assets': network_associated_assets,
                   'visualization': network_visualization}
 
-      elif initial_asset_type == 'vm_instance':
+      elif size_constraining_asset_type == 'vm_instance':
             vm_instance = {'abbreviation': 'VM',
                         'n': vm_instance_n,
                         'associated_assets': vm_instance_associated_assets,
                         'visualization': vm_instance_visualization}
 
-      elif initial_asset_type == 'admin_privileges':
+      elif size_constraining_asset_type == 'admin_privileges':
             admin_privileges = {'abbreviation': 'A',
                               'n': admin_privileges_n,
                               'associated_assets': admin_privileges_associated_assets,
                               'visualization': admin_privileges_visualization}
             
-      elif initial_asset_type == 'principal':
+      elif size_constraining_asset_type == 'principal':
             principal = {'abbreviation': 'P',
                         'n': principal_n,
                         'associated_assets': principal_associated_assets,

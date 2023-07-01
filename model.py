@@ -22,7 +22,7 @@ class Model:
 
     def select_initial_asset_type(self):
         available_inital_asset_types = [a for a in list(
-            self.metamodel.keys()) if 'n' in self.metamodel[a]]
+            self.metamodel.keys())]
         return random.choice(available_inital_asset_types)
 
     def all_assets(self):
@@ -73,11 +73,13 @@ class Model:
 
     def sample(self):
         initial_asset_type = self.select_initial_asset_type()
+        print(f'# Initial asset type: {initial_asset_type}')
         asset = self.add(initial_asset_type)
         self.complete_associations(asset)
         while self.incompletely_associated_assets():
             asset = random.choice(self.incompletely_associated_assets())
             self.complete_associations(asset)
+            print(f'\r# Number of assets: {len(self.all_assets())}', end='')
 
     def check_consistency(self):
         inconsistent = []
@@ -111,14 +113,15 @@ class Model:
                 else:
                     print(f'Actual {asset_type}: {len(self.assets[asset_type])}, Target: {self.n_assets[asset_type].value}')
             match_count = 0
-            mismatch_count = 0
+            mismatch_count_dict = dict()
             for asset in self.assets[asset_type]:
                 for associated_asset_type in asset.n_associated_assets.keys():
+                    mismatch_count_dict[associated_asset_type] = 0
                     if len(asset.associated_assets[associated_asset_type]) == asset.n_associated_assets[associated_asset_type].value:
                         match_count += 1
                     else:
-                        mismatch_count += 1
-            print(f'{asset_type} association matches: {match_count}, mismatches: {mismatch_count}')
+                        mismatch_count_dict[associated_asset_type] += 1
+            print(f'{asset_type} association matches: {match_count}, mismatches: {mismatch_count_dict}')
 
     def print(self):
         for asset_type in self.assets.keys():
