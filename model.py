@@ -188,7 +188,7 @@ class Model:
                         print(f'# - For the {len(self.assets[asset_type])} {asset_type} assets\' {associated_asset_type} associations, a total of {n_associated_mismatch_dict[associated_asset_type]} failed to perfectly meet the sampled target and a {n_out_of_distribution_associated_mismatch_dict[associated_asset_type]} were out of distribution.')
             if not mismatch:
                 print(f'# + The number of associated assets for {asset_type} corresponds precisely to the sampled value.')
-            print('If results are far from targets, the metamodel probability distributions might be inconsistently specified.')
+        print('If results are far from targets, the metamodel probability distributions might be inconsistently specified.')
 
     def print(self, summary=True):
         '''

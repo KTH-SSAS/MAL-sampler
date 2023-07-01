@@ -1,12 +1,18 @@
+import sys
+
 from constants import PLOT_FILE_NAME
 from probability_distribution import ProbabilityDistribution
 from example_metamodel import example_metamodel
 from model import Model
 
 if __name__ == "__main__":
-    metamodel = example_metamodel(size_factor=10, size_constraining_asset_type='all')
+    metamodel = example_metamodel(size_factor=20, size_constraining_asset_type='network')
     print(f'# Metamodel containing these assets: {[a for a in metamodel.keys()]}')
     model = Model(metamodel)
+    for asset_type in metamodel.keys():
+        if model.n_assets[asset_type].value < sys.maxsize:
+            print(f'# Size-constraining number of {asset_type} assets: {model.n_assets[asset_type].value}.')
+
     model.sample()
     print(f'# Sampled a model containing {len(model.all_assets())} assets.')
     model.resolve_inconsistency()
