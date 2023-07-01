@@ -2,12 +2,9 @@ import random
 import networkx as nx
 import matplotlib.pyplot as plt
 import sys
-
-from constants import N_SAMPLES_FOR_BOUNDS, PLOT_FILE_NAME
+from constants import N_SAMPLES_FOR_BOUNDS
 from probability_distribution import ProbabilityDistribution
 from asset import Asset
-from example_metamodel import example_metamodel
-
 
 class Model:
     def __init__(self, metamodel: dict):
@@ -132,15 +129,3 @@ class Model:
         plt.axis('off')
         plt.savefig(filename, dpi=1200, bbox_inches='tight',
                     pad_inches=0, facecolor='black')
-
-
-if __name__ == "__main__":
-    metamodel = example_metamodel(size_factor=40)
-    print(f'# Metamodel containing these assets: {[a for a in metamodel.keys()]}')
-    model = Model(metamodel)
-    model.sample()
-    print(f'# Sampled a model containing {len(model.all_assets())} assets.')
-    model.resolve_inconsistency()
-    print(f'# After resolving inconsistencies, model contains {len(model.all_assets())} assets.')
-    model.plot(PLOT_FILE_NAME)
-    print(f'# Model plotted in {PLOT_FILE_NAME}.')
