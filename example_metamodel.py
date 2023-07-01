@@ -1,4 +1,11 @@
+'''
+The `example_metamodel` function defines a metamodel used to generate the assets and their associations.
+'''
 def example_metamodel(size_factor=10, size_constraining_asset_type='network'):
+      '''
+      size_factor : A multiplier used to control the size of the generated model.
+      size_constraining_asset_type : The type of asset that constrains the size of the generated model.
+      '''
 
       network_n = {'distribution': 'BinomialPlusOne',
                         'n': 1*size_factor,

@@ -1,5 +1,9 @@
 from probability_distribution import ProbabilityDistribution
 
+'''
+The Asset class represents an individual asset in the system.
+Each asset has a name, type, and relationships (associations) with other assets.
+'''
 class Asset:
     def __init__(self, name: str, asset_type_name: str, associated_assets_dict: dict):
         self.name = name

@@ -6,6 +6,10 @@ from constants import N_SAMPLES_FOR_BOUNDS
 from probability_distribution import ProbabilityDistribution
 from asset import Asset
 
+'''
+The Model class is used to manage the overall structure of assets in the system. 
+It includes functions to add and remove assets, associate assets, and generate a random model.
+'''
 class Model:
     def __init__(self, metamodel: dict):
         self.n_assets = dict()
@@ -109,24 +113,31 @@ class Model:
         for asset_type in self.metamodel:
             if 'n' in self.metamodel[asset_type]:
                 if len(self.assets[asset_type]) == self.n_assets[asset_type].value:
-                    print(f'{asset_type} count matches target')
+                    print(f'# + {asset_type} count matches target')
                 else:
-                    print(f'Actual {asset_type}: {len(self.assets[asset_type])}, Target: {self.n_assets[asset_type].value}')
+                    print(f'# - Actual {asset_type}: {len(self.assets[asset_type])}, Target: {self.n_assets[asset_type].value}')
             match_count = 0
             mismatch_count_dict = dict()
-            for asset in self.assets[asset_type]:
-                for associated_asset_type in asset.n_associated_assets.keys():
-                    mismatch_count_dict[associated_asset_type] = 0
+            for associated_asset_type in self.metamodel[asset_type]['associated_assets']:
+                mismatch_count_dict[associated_asset_type] = 0
+                for asset in self.assets[asset_type]:
                     if len(asset.associated_assets[associated_asset_type]) == asset.n_associated_assets[associated_asset_type].value:
                         match_count += 1
                     else:
                         mismatch_count_dict[associated_asset_type] += 1
-            print(f'{asset_type} association matches: {match_count}, mismatches: {mismatch_count_dict}')
+            if sum(mismatch_count_dict.values()) == 0:
+                print(f'# + All {asset_type} association matches.')
+            else:
+                print(f'# + {asset_type} association matches: {match_count}, mismatches: {mismatch_count_dict}')
 
-    def print(self):
+    def print(self, summary=True):
         for asset_type in self.assets.keys():
-            for asset in self.assets[asset_type]:
-                asset.print()
+            if summary:
+                print(f'# {asset_type}: {len(self.assets[asset_type])}')
+            else:
+                print(f'# {asset_type}:')
+                for asset in self.assets[asset_type]:
+                    asset.print()
 
     def plot(self, filename: str):
         G = nx.Graph()
