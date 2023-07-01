@@ -1,4 +1,4 @@
-def sample_metamodel(size_factor = 10):
+def example_metamodel(size_factor = 10):
     metamodel_of_adjustable_size = {'network': {'abbreviation': 'N',
                                                 'n': {'distribution': 'BinomialPlusOne',
                                                       'n': 1*size_factor,
