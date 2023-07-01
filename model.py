@@ -79,8 +79,8 @@ class Model:
         while self.incompletely_associated_assets():
             asset = random.choice(self.incompletely_associated_assets())
             self.complete_associations(asset)
-            print(f'\r# Number of assets: {len(self.all_assets())}', end='')
-
+            print(f'\r# Number of assets: {len(self.all_assets())}. Number of incomplete assets: {len(self.incompletely_associated_assets())}. Latest: {asset.asset_type_name} {asset.name}                         ', end='')
+        print()
     def check_consistency(self):
         inconsistent = []
         for asset in self.all_assets():

@@ -67,51 +67,19 @@ def example_metamodel(size_factor=10, size_constraining_asset_type='network'):
                   'associated_assets': principal_associated_assets,
                   'visualization': principal_visualization}
 
-
       if size_constraining_asset_type == 'network':
-            network = {'abbreviation': 'N',
-                  'n': network_n,
-                  'associated_assets': network_associated_assets,
-                  'visualization': network_visualization}
-
+            network['n'] = network_n
       elif size_constraining_asset_type == 'vm_instance':
-            vm_instance = {'abbreviation': 'VM',
-                        'n': vm_instance_n,
-                        'associated_assets': vm_instance_associated_assets,
-                        'visualization': vm_instance_visualization}
-
+            vm_instance['n'] = vm_instance_n
       elif size_constraining_asset_type == 'admin_privileges':
-            admin_privileges = {'abbreviation': 'A',
-                              'n': admin_privileges_n,
-                              'associated_assets': admin_privileges_associated_assets,
-                              'visualization': admin_privileges_visualization}
-            
+            admin_privileges['n'] = admin_privileges_n
       elif size_constraining_asset_type == 'principal':
-            principal = {'abbreviation': 'P',
-                        'n': principal_n,
-                        'associated_assets': principal_associated_assets,
-                        'visualization': principal_visualization}
-
+            principal['n'] = principal_n
       else:
-            network = {'abbreviation': 'N',
-                  'n': network_n,
-                  'associated_assets': network_associated_assets,
-                  'visualization': network_visualization}
-      
-            vm_instance = {'abbreviation': 'VM',
-                        'n': vm_instance_n,
-                        'associated_assets': vm_instance_associated_assets,
-                        'visualization': vm_instance_visualization}
-
-            admin_privileges = {'abbreviation': 'A',
-                              'n': admin_privileges_n,
-                              'associated_assets': admin_privileges_associated_assets,
-                              'visualization': admin_privileges_visualization}
-
-            principal = {'abbreviation': 'P',
-                        'n': principal_n,
-                        'associated_assets': principal_associated_assets,
-                        'visualization': principal_visualization}
+            network['n'] = network_n
+            vm_instance['n'] = vm_instance_n
+            admin_privileges['n'] = admin_privileges_n
+            principal['n'] = principal_n
 
       metamodel = {'network': network,
                                           'vm_instance': vm_instance,
