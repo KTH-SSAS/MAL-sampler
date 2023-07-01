@@ -124,9 +124,8 @@ class Model:
                         print(f'Forced association between {source_asset.asset_type_name} {source_asset.name} and {target_asset.asset_type_name} {target_asset.name}')
                 else:
                     if len(self.assets[target_asset_type]) < self.n_assets[target_asset_type].value:
-                        target_asset = self.add(target_asset_type)
-                        if force_associate:
-                            print(f'Forced creation of new asset of type {target_asset_type}')
+                        if not force_associate:
+                            target_asset = self.add(target_asset_type)
                 if target_asset:
                     source_asset.associate(target_asset)
                 else:
@@ -142,13 +141,13 @@ class Model:
             self.complete_associations(asset)
 
     def check_consistency(self):
-        inconsistent_assets = []
+        inconsistent = []
         for asset in self.all_assets():
             for associated_asset_type in asset.n_associated_assets.keys():
                 if len(asset.associated_assets[associated_asset_type]) < asset.n_associated_assets[associated_asset_type].low or len(asset.associated_assets[associated_asset_type]) > asset.n_associated_assets[associated_asset_type].high:
-                    inconsistent_assets.append(asset)
+                    inconsistent.append(asset)
                     print(f'Inconsistent asset: {asset.name} ({asset.asset_type_name}): {len(asset.associated_assets[associated_asset_type])} associated {associated_asset_type} assets, targeted  {asset.n_associated_assets[associated_asset_type].value} and accepts between {asset.n_associated_assets[associated_asset_type].low} and {asset.n_associated_assets[associated_asset_type].high}')
-        return inconsistent_assets
+        return inconsistent
 
     def print(self):
         for asset_type in self.assets.keys():
@@ -179,7 +178,7 @@ class Model:
 
 
 if __name__ == "__main__":
-    probably_self_contradictory_metamodel = {'network': {'abbreviation': 'N',
+    midsized_metamodel = {                   'network': {'abbreviation': 'N',
                                                          'n': {'distribution': 'BinomialPlusOne',
                                                                'n': 30,
                                                                'p': 0.5},
@@ -335,8 +334,55 @@ if __name__ == "__main__":
                                                 'visualization': {'shape': '^',
                                                                   'color': 'green'}}}
 
+    size_factor = 160
+    metamodel_of_adjustable_size = {         'network': {'abbreviation': 'N',
+                                                         'n': {'distribution': 'BinomialPlusOne',
+                                                               'n': 1*size_factor,
+                                                               'p': 0.5},
+                                                         'associated_assets': {
+                                                             'network': {'distribution': 'BinomialPlusOne',
+                                                                         'n': 10,
+                                                                         'p': 0.1},
+                                                             'vm_instance': {'distribution': 'Binomial',
+                                                                             'n': 10*size_factor,
+                                                                             'p': 0.05}},
+                                                         'visualization': {'shape': 's',
+                                                                           'color': 'red'}},
+                                             'vm_instance': {'abbreviation': 'VM',
+                                                             'n': {'distribution': 'BinomialPlusOne',
+                                                                   'n': 5*size_factor,
+                                                                   'p': 0.5},
+                                                             'associated_assets': {
+                                                                 'network': {'distribution': 'Constant',
+                                                                             'n': 1},
+                                                                 'admin_privileges': {'distribution': 'Constant',
+                                                                                      'n': 1}},
+                                                             'visualization': {'shape': 'o',
+                                                                               'color': 'blue'}},
+                                             'admin_privileges': {'abbreviation': 'A',
+                                                                  'n': {'distribution': 'BinomialPlusOne',
+                                                                        'n': 5*size_factor,
+                                                                        'p': 0.5},
+                                                                  'associated_assets': {
+                                                                      'vm_instance': {'distribution': 'Constant',
+                                                                                      'n': 1},
+                                                                      'principal': {'distribution': 'BinomialPlusOne',
+                                                                                    'n': 10,
+                                                                                    'p': 0.1}},
+                                                                  'visualization': {'shape': 'v',
+                                                                                    'color': 'yellow'}},
+                                             'principal': {'abbreviation': 'P',
+                                                           'n': {'distribution': 'BinomialPlusOne',
+                                                                 'n': 10*size_factor,
+                                                                 'p': 0.05},
+                                                           'associated_assets': {
+                                                               'admin_privileges': {'distribution': 'Binomial',
+                                                                                    'n': 2*size_factor,
+                                                                                    'p': 0.1}},
+                                                           'visualization': {'shape': '^',
+                                                                             'color': 'green'}}}
 
-    model = Model(probably_self_contradictory_metamodel)
+    model = Model(metamodel_of_adjustable_size)
     model.sample()
     inconsistent_assets = model.check_consistency()
     print(f'Assets: {len(model.all_assets())}.')
@@ -353,10 +399,11 @@ if __name__ == "__main__":
         model.plot('model_2.png')
         for inconsistent_asset in inconsistent_assets:
             model.remove(inconsistent_asset)
-        print(f'Removed {inconsistent_asset.name} from the model. Remaining assets: {len(model.all_assets())}.')
+            print(f'Removed {inconsistent_asset.name} from the model. Remaining assets: {len(model.all_assets())}.')
         inconsistent_assets = model.check_consistency()
         print(f'Remaining inconsistent assets: {len(inconsistent_assets)}')
         model.plot('model_3.png')
         if counter > 10:
+            print('Failed to resolve inconsistencies in 10 iterations.')
             break
 
