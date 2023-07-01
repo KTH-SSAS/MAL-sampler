@@ -158,22 +158,29 @@ class Model:
         for asset_type in self.metamodel:
             if 'n' in self.metamodel[asset_type]:
                 if len(self.assets[asset_type]) == self.n_assets[asset_type].value:
-                    print(f'# + {asset_type} count matches target')
+                    print(f'# + The number of generated {asset_type} assets corresponds precisely to the sampled value.')
                 else:
-                    print(f'# - Actual {asset_type}: {len(self.assets[asset_type])}, Target: {self.n_assets[asset_type].value}')
-            match_count = 0
-            mismatch_count_dict = dict()
-            for associated_asset_type in self.metamodel[asset_type]['associated_assets']:
-                mismatch_count_dict[associated_asset_type] = 0
-                for asset in self.assets[asset_type]:
-                    if len(asset.associated_assets[associated_asset_type]) == asset.n_associated_assets[associated_asset_type].value:
-                        match_count += 1
+                    print(f'# - {len(self.assets[asset_type])} {asset_type} asset(s) were generated, while the target number sampled from the probability distribution was {self.n_assets[asset_type].value}. The lower and upper bounds were {self.n_assets[asset_type].low} and {self.n_assets[asset_type].high}.')
+                    if len(self.assets[asset_type]) < self.n_assets[asset_type].low:
+                        print(f'# - The number of generated {asset_type} assets is lower than the lower bound and thus way out of distribution.')
+                    elif len(self.assets[asset_type]) > self.n_assets[asset_type].high:
+                        print(f'# - The number of generated {asset_type} assets is higher than the upper bound and thus way out of distribution.')
                     else:
-                        mismatch_count_dict[associated_asset_type] += 1
-            if sum(mismatch_count_dict.values()) == 0:
-                print(f'# + All {asset_type} association matches.')
-            else:
-                print(f'# + {asset_type} association matches: {match_count}, mismatches: {mismatch_count_dict}')
+                        print(f'# + The number of generated {asset_type} assets is within the distribution.')
+            mismatch = False
+            for associated_asset_type in self.metamodel[asset_type]['associated_assets']:
+                for asset in self.assets[asset_type]:
+                    if len(asset.associated_assets[associated_asset_type]) != asset.n_associated_assets[associated_asset_type].value:
+                        print(f'# - For the {asset_type} asset, {len(asset.associated_assets[associated_asset_type])} {associated_asset_type} asset(s) were associated, while the target number sampled from the probability distribution was {asset.n_associated_assets[associated_asset_type].value}. The lower and upper bounds were {asset.n_associated_assets[associated_asset_type].low} and {asset.n_associated_assets[associated_asset_type].high}.')
+                        if len(asset.associated_assets[associated_asset_type]) < asset.n_associated_assets[associated_asset_type].low:
+                            print(f'# - The number of associated {associated_asset_type} assets is lower than the lower bound and thus way out of distribution.')
+                        elif len(asset.associated_assets[associated_asset_type]) > asset.n_associated_assets[associated_asset_type].high:
+                            print(f'# - The number of associated {associated_asset_type} assets is higher than the upper bound and thus way out of distribution.')
+                        else:
+                            print(f'# + The number of associated {associated_asset_type} assets is within the distribution.')
+                        mismatch = True
+            if not mismatch:
+                print(f'# + The number of associated assets for {asset_type} corresponds precisely to the sampled value.')
 
     def print(self, summary=True):
         '''
