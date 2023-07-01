@@ -1,7 +1,8 @@
 from scipy.stats import binom
+from constants import N_SAMPLES_FOR_BOUNDS
 
 class ProbabilityDistribution:
-    def __init__(self, distribution_dict: dict, n_samples_for_bounds: int):
+    def __init__(self, distribution_dict: dict, n_samples_for_bounds: int = N_SAMPLES_FOR_BOUNDS):
         self.distribution = distribution_dict['distribution']
         self.n = distribution_dict['n']
         if 'p' in distribution_dict:
