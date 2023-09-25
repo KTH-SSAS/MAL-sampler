@@ -1,9 +1,9 @@
 import random
-import networkx as nx
-import matplotlib.pyplot as plt
 import sys
-from src.probability_distribution import ProbabilityDistribution
-from src.asset import Asset
+import matplotlib.pyplot as plt
+import networkx as nx
+from probability_distribution import ProbabilityDistribution
+from asset import Asset
 
 '''
 The Model class is used to manage the overall structure of assets in the system. 
