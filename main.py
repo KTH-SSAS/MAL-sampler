@@ -1,9 +1,7 @@
 import sys
-
-from constants import PLOT_FILE_NAME
-from probability_distribution import ProbabilityDistribution
+from src.probability_distribution import ProbabilityDistribution
 from example_metamodel import example_metamodel
-from model import Model
+from src.model import Model
 
 if __name__ == "__main__":
     metamodel = example_metamodel(size_factor=20, size_constraining_asset_type='network')
@@ -16,8 +14,8 @@ if __name__ == "__main__":
     model.sample()
     print(f'# After resolving inconsistencies, model contains {len(model.all_assets())} assets.')
     print(f'# Plotting.')
-    model.plot(PLOT_FILE_NAME)
+    model.plot('plot.png')
     model.print(summary=True)
-    print(f'# Model plotted in {PLOT_FILE_NAME}.')
+    print(f'# Model plotted in plot.png.')
     print(f'# Comparing actual samples with targets.')
     model.compare_actual_samples_with_targets()

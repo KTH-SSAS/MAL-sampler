@@ -2,16 +2,15 @@ import random
 import networkx as nx
 import matplotlib.pyplot as plt
 import sys
-from constants import N_SAMPLES_FOR_BOUNDS, N_INCONSISTENCY_RESOLUTION_ATTEMPTS
-from probability_distribution import ProbabilityDistribution
-from asset import Asset
+from src.probability_distribution import ProbabilityDistribution
+from src.asset import Asset
 
 '''
 The Model class is used to manage the overall structure of assets in the system. 
 It includes functions to add and remove assets, associate assets, and generate a random model.
 '''
 class Model:
-    def __init__(self, metamodel: dict):
+    def __init__(self, metamodel: dict, n_consistency_resolution_attempts=10, n_samples_for_bounds=100):
         '''
         Initialize a Model instance.
         metamodel : A dictionary that represents the metamodel used to generate the assets.
@@ -19,13 +18,15 @@ class Model:
         self.n_assets = dict()
         self.assets = dict()
         self.metamodel = metamodel
+        self.n_consistency_resolution_attempts = n_consistency_resolution_attempts
+        self.n_samples_for_bounds = n_samples_for_bounds
         for asset_type in self.metamodel:
             if 'n' in self.metamodel[asset_type]:
                 self.n_assets[asset_type] = ProbabilityDistribution(
-                    self.metamodel[asset_type]['n'], N_SAMPLES_FOR_BOUNDS)
+                    self.metamodel[asset_type]['n'], self.n_samples_for_bounds)
             else:
                 self.n_assets[asset_type] = ProbabilityDistribution(
-                    {'distribution': 'Constant', 'n': sys.maxsize}, N_SAMPLES_FOR_BOUNDS)
+                    {'distribution': 'Constant', 'n': sys.maxsize}, self.n_samples_for_bounds)
             self.assets[asset_type] = set()
 
     def select_initial_asset_type(self):
@@ -147,8 +148,8 @@ class Model:
             for inconsistent_asset in inconsistent_assets:
                 self.remove(inconsistent_asset)
             inconsistent_assets = self.check_consistency()
-            if counter > N_INCONSISTENCY_RESOLUTION_ATTEMPTS:
-                print(f'Failed to resolve inconsistencies in {N_INCONSISTENCY_RESOLUTION_ATTEMPTS} iterations.')
+            if counter > self.n_consistency_resolution_attempts:
+                print(f'Failed to resolve inconsistencies in {self.n_consistency_resolution_attempts} iterations.')
                 break
 
     def sample(self):

@@ -1,4 +1,4 @@
-from probability_distribution import ProbabilityDistribution
+from src.probability_distribution import ProbabilityDistribution
 
 '''
 The Asset class represents an individual asset in the system.

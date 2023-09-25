@@ -1,12 +1,11 @@
 from scipy.stats import binom
-from constants import N_SAMPLES_FOR_BOUNDS
 
 '''
 The ProbabilityDistribution class is used to represent a probability distribution. 
 It supports three types of distribution: 'Binomial', 'Constant', and 'BinomialPlusOne'.
 '''
 class ProbabilityDistribution:
-    def __init__(self, distribution_dict: dict, n_samples_for_bounds: int = N_SAMPLES_FOR_BOUNDS):
+    def __init__(self, distribution_dict: dict, n_samples_for_bounds: int = 100):
         '''
         Initialize a ProbabilityDistribution instance.
         distribution_dict : A dictionary that contains the type of distribution and the necessary parameters.
