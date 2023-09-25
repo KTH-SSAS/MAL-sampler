@@ -2,9 +2,8 @@ import sys
 import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '../src'))
 sys.path.append(os.path.join(os.path.dirname(__file__), '../tests/examples'))
-from probability_distribution import ProbabilityDistribution
 from example_metamodel import example_metamodel
-from model import Model
+from mal_sampler import Model
 
 if __name__ == "__main__":
     metamodel = example_metamodel(size_factor=20, size_constraining_asset_type='network')
