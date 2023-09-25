@@ -14,8 +14,6 @@ if __name__ == "__main__":
             print(f'# Size-constraining number of {asset_type} assets: {model.n_assets[asset_type].value}.')
 
     model.sample()
-    print(f'# Sampled a model containing {len(model.all_assets())} assets.')
-    model.resolve_inconsistency()
     print(f'# After resolving inconsistencies, model contains {len(model.all_assets())} assets.')
     print(f'# Plotting.')
     model.plot(PLOT_FILE_NAME)

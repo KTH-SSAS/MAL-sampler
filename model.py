@@ -107,7 +107,7 @@ class Model:
                     break
         source_asset.generation_completed = True
 
-    def sample(self):
+    def sample_tentatively(self):
         '''
         Generate a random model based on the specified metamodel.
         '''
@@ -150,6 +150,15 @@ class Model:
             if counter > N_INCONSISTENCY_RESOLUTION_ATTEMPTS:
                 print(f'Failed to resolve inconsistencies in {N_INCONSISTENCY_RESOLUTION_ATTEMPTS} iterations.')
                 break
+
+    def sample(self):
+        '''
+        Generate a random model based on the specified metamodel. It tries to resolve inconsistencies up to N_INCONSISTENCY_RESOLUTION_ATTEMPTS times before giving up.
+        '''
+        self.sample_tentatively()
+        print(f'# Sampled a model containing {len(self.all_assets())} assets.')
+        self.resolve_inconsistency()
+        print(f'# After resolving inconsistencies, model contains {len(self.all_assets())} assets.')
 
     def compare_actual_samples_with_targets(self):
         '''
