@@ -132,7 +132,7 @@ class Model:
                     {'distribution': 'Constant', 'n': sys.maxsize}, self.n_samples_for_bounds)
             self.assets[asset_type] = set()
 
-    def select_initial_asset_type(self):
+    def __select_initial_asset_type(self):
         '''
         Select the initial asset type to be added to the model.
         '''
@@ -140,19 +140,19 @@ class Model:
             self.metamodel.keys())]
         return random.choice(available_inital_asset_types)
 
-    def all_assets(self):
+    def __all_assets(self):
         '''
         Get a list of all assets in the model.
         '''
         return [a for asset_type in self.assets for a in self.assets[asset_type]]
 
-    def incompletely_associated_assets(self):
+    def __incompletely_associated_assets(self):
         '''
         Get a list of all assets that have not completed their association process.
         '''
-        return [a for a in self.all_assets() if not a.generation_completed]
+        return [a for a in self.__all_assets() if not a.generation_completed]
 
-    def available_targets(self, source_asset, target_asset_type, force_associate=False):
+    def __available_targets(self, source_asset, target_asset_type, force_associate=False):
         '''
         Get a list of available targets for a source asset.
         source_asset : The source asset that is looking for potential targets to associate with.
@@ -166,7 +166,7 @@ class Model:
                 a for a in available_target_assets if a != source_asset]
         return available_target_assets
 
-    def add(self, asset_type: str):
+    def __add(self, asset_type: str):
         '''
         Add an asset of a specified type to the model.
         asset_type : The type of the asset to be added.
@@ -179,7 +179,7 @@ class Model:
         else:
             raise ValueError(f'Unknown asset type: {asset_type}')
 
-    def remove(self, asset: Asset):
+    def __remove(self, asset: Asset):
         '''
         Remove an asset from the model.
         asset : The asset to be removed.
@@ -188,7 +188,7 @@ class Model:
         if asset in self.assets[asset.asset_type_name]:
             self.assets[asset.asset_type_name].remove(asset)
 
-    def complete_associations(self, source_asset: Asset, force_associate=False):
+    def __complete_associations(self, source_asset: Asset, force_associate=False):
         '''
         Complete the associations of a source asset.
         source_asset : The source asset that needs to complete its associations.
@@ -197,60 +197,60 @@ class Model:
         for target_asset_type in source_asset.n_associated_assets.keys():
             while source_asset.accepts(target_asset_type):
                 target_asset = None
-                available_target_assets = self.available_targets(
+                available_target_assets = self.__available_targets(
                     source_asset, target_asset_type, force_associate=force_associate)
                 if len(available_target_assets) > 0:
                     target_asset = random.choice(available_target_assets)
                 else:
                     if len(self.assets[target_asset_type]) < self.n_assets[target_asset_type].value:
                         if not force_associate:
-                            target_asset = self.add(target_asset_type)
+                            target_asset = self.__add(target_asset_type)
                 if target_asset:
                     source_asset.associate(target_asset)
                 else:
                     break
         source_asset.generation_completed = True
 
-    def sample_tentatively(self):
+    def __sample_tentatively(self):
         '''
         Generate a random model based on the specified metamodel.
         '''
-        initial_asset_type = self.select_initial_asset_type()
+        initial_asset_type = self.__select_initial_asset_type()
         print(f'# Initial asset type: {initial_asset_type}')
-        asset = self.add(initial_asset_type)
-        self.complete_associations(asset)
-        while self.incompletely_associated_assets():
-            asset = random.choice(self.incompletely_associated_assets())
-            self.complete_associations(asset)
-            print(f'\r# Number of assets: {len(self.all_assets())}. Number of incomplete assets: {len(self.incompletely_associated_assets())}. Latest: {asset.asset_type_name} {asset.name}                         ', end='')
+        asset = self.__add(initial_asset_type)
+        self.__complete_associations(asset)
+        while self.__incompletely_associated_assets():
+            asset = random.choice(self.__incompletely_associated_assets())
+            self.__complete_associations(asset)
+            print(f'\r# Number of assets: {len(self.__all_assets())}. Number of incomplete assets: {len(self.__incompletely_associated_assets())}. Latest: {asset.asset_type_name} {asset.name}                         ', end='')
         print()
 
-    def check_consistency(self):
+    def __check_consistency(self):
         '''
         Check the consistency of the model. Inconsistent assets are those that have less or more associations than the specified limits.
         '''
         inconsistent = []
-        for asset in self.all_assets():
+        for asset in self.__all_assets():
             for associated_asset_type in asset.n_associated_assets.keys():
                 if len(asset.associated_assets[associated_asset_type]) < asset.n_associated_assets[associated_asset_type].low or len(asset.associated_assets[associated_asset_type]) > asset.n_associated_assets[associated_asset_type].high:
                     inconsistent.append(asset)
         return inconsistent
 
-    def resolve_inconsistency(self):
+    def __resolve_inconsistency(self):
         '''
         Resolve any inconsistencies in the model. It tries to resolve inconsistencies up to N_INCONSISTENCY_RESOLUTION_ATTEMPTS times before giving up.
         '''
-        inconsistent_assets = self.check_consistency()
+        inconsistent_assets = self.__check_consistency()
         counter = 0
         while inconsistent_assets:
             counter += 1
             for inconsistent_asset in inconsistent_assets:
-                self.complete_associations(
+                self.__complete_associations(
                     inconsistent_asset, force_associate=True)
-            inconsistent_assets = self.check_consistency()
+            inconsistent_assets = self.__check_consistency()
             for inconsistent_asset in inconsistent_assets:
-                self.remove(inconsistent_asset)
-            inconsistent_assets = self.check_consistency()
+                self.__remove(inconsistent_asset)
+            inconsistent_assets = self.__check_consistency()
             if counter > self.n_consistency_resolution_attempts:
                 print(f'Failed to resolve inconsistencies in {self.n_consistency_resolution_attempts} iterations.')
                 break
@@ -259,10 +259,10 @@ class Model:
         '''
         Generate a random model based on the specified metamodel. It tries to resolve inconsistencies up to N_INCONSISTENCY_RESOLUTION_ATTEMPTS times before giving up.
         '''
-        self.sample_tentatively()
-        print(f'# Sampled a model containing {len(self.all_assets())} assets.')
-        self.resolve_inconsistency()
-        print(f'# After resolving inconsistencies, model contains {len(self.all_assets())} assets.')
+        self.__sample_tentatively()
+        print(f'# Sampled a model containing {len(self.__all_assets())} assets.')
+        self.__resolve_inconsistency()
+        print(f'# After resolving inconsistencies, model contains {len(self.__all_assets())} assets.')
 
     def compare_actual_samples_with_targets(self):
         '''
